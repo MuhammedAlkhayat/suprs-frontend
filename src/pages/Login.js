@@ -1,13 +1,13 @@
+// src/pages/Login.js
 import React, { useEffect, useRef, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Container, Form, Button, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useMutation } from 'react-query';
 import { gsap } from 'gsap';
 import { FaLock, FaUser, FaParking } from 'react-icons/fa';
 import api from '../services/api';
 
-// --- Styled Components (Unique UI/UX Styling) ---
 const LoginWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -62,33 +62,29 @@ const InputGroup = styled.div`
   }
 `;
 
-// --- Component Logic ---
 export default function Login() {
-  const history = useHistory();
+  const navigate = useNavigate();
   const cardRef = useRef(null);
   const [credentials, setCredentials] = useState({ email: 'user@example.com', password: 'password' });
 
-  // GSAP Animation on Mount (use fromTo + cleanup to avoid stuck opacity)
   useEffect(() => {
     if (!cardRef.current) return;
 
     const anim = gsap.fromTo(
       cardRef.current,
-      { y: 50, opacity: 0 }, // explicit start
+      { y: 50, opacity: 0 },
       {
         duration: 1.2,
         y: 0,
         opacity: 1,
         ease: 'power4.out',
         onComplete() {
-          // remove inline opacity so CSS returns to control
           try { if (cardRef.current) cardRef.current.style.opacity = ''; } catch (e) {}
         }
       }
     );
 
     return () => {
-      // kill animation and ensure element visible on unmount/navigation
       try {
         if (anim) anim.kill();
         if (cardRef.current) cardRef.current.style.opacity = '1';
@@ -96,14 +92,13 @@ export default function Login() {
     };
   }, []);
 
-  // React Query Mutation for Data Fetching
   const mutation = useMutation(
     (loginData) => api.post('/auth/login', loginData),
     {
       onSuccess: (data) => {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
-        history.push('/dashboard');
+        navigate('/dashboard');
       }
     }
   );

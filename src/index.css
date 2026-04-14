@@ -262,6 +262,11 @@ input:focus {
   outline: 3px solid rgba(0, 210, 255, 0.12);
   outline-offset: 2px;
 }
-
+@media (max-width: 420px) {
+  .slot-box { height: 120px; font-size: 16px; }
+  .glass-card { padding: 1rem; border-radius: 12px; }
+  .parking-grid { gap: 12px; padding: 12px; }
+  header { height: 56px; } /* if needed */
+}
 /* Debug helper (dev only) - show element boundaries when needed */
 /* .debug-bounds * { outline: 1px dashed rgba(255,0,0,0.04); } */

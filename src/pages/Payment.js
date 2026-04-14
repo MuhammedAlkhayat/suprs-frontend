@@ -1,11 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+// src/pages/Payment.js
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useHistory } from 'react-router-dom';
 import styled from 'styled-components';
 import { Container, Button, Spinner } from 'react-bootstrap';
 import { gsap } from 'gsap';
 import { FaCreditCard, FaCheckCircle, FaLock } from 'react-icons/fa';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import api from '../services/api';
 
+// Stripe promise (cached)
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
+
+// Styled components (kept from your original)
 const PaymentCard = styled.div`
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
@@ -25,15 +32,33 @@ const SuccessIcon = styled(FaCheckCircle)`
   filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.4));
 `;
 
-export default function Payment() {
+/* small wrapper to style CardElement */
+const CardWrapper = styled.div`
+  background: rgba(0,0,0,0.25);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+  .StripeElement {
+    color: #fff;
+    font-size: 16px;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  }
+`;
+
+function PaymentInner() {
   const location = useLocation();
   const history = useHistory();
   const cardRef = useRef(null);
   const successRef = useRef(null);
 
-  const [status, setStatus] = useState('IDLE'); // IDLE, PROCESSING, SUCCESS
-  const total = location.state?.total || 0;
-  const slotCode = location.state?.slotCode || 'N/A';
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const [status, setStatus] = useState('IDLE'); // IDLE | PROCESSING | SUCCESS
+  const total = typeof location.state?.total === 'number' ? location.state.total : (Number(location.state?.amount) || 0);
+  const slotCode = location.state?.slotCode || location.state?.slot_code || 'N/A';
+  const slotId = location.state?.slotId || location.state?.slot_id || null;
 
   // initial mount animation (defensive)
   useEffect(() => {
@@ -87,24 +112,65 @@ export default function Payment() {
     };
   }, [status]);
 
-  const handlePayment = async () => {
+  const handlePayment = useCallback(async (e) => {
+    e && e.preventDefault();
+    if (!stripe || !elements) {
+      alert('Payment system not ready. Try again in a moment.');
+      return;
+    }
+
     setStatus('PROCESSING');
 
-    // Simulate network delay for professional feel
-    setTimeout(async () => {
-      try {
-        const res = await api.post('/payments', { amount: total, slotCode });
-        if (res.data && res.data.success) {
-          setStatus('SUCCESS');
-        } else {
-          throw new Error('Payment failed');
-        }
-      } catch (err) {
-        alert('Payment Failed. Please try again.');
+    try {
+      // amount in cents; if incoming total is already cents, skip conversion — we assume total is dollars
+      const amountCents = Math.round(total * 100);
+
+      // Create PaymentIntent on server
+      const resp = await api.post('/payments/create-payment-intent', {
+        amount: amountCents,
+        currency: 'usd',
+        metadata: { slot_id: slotId || undefined, slot_code: slotCode || undefined }
+      });
+
+      const clientSecret = resp.data?.client_secret || resp?.data?.client_secret || resp?.client_secret;
+      if (!clientSecret) throw new Error('Missing client_secret from server');
+
+      const card = elements.getElement(CardElement);
+      if (!card) throw new Error('CardElement not found');
+
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card }
+      });
+
+      if (result.error) {
+        console.error('Stripe confirm error', result.error);
+        alert(result.error.message || 'Payment failed');
         setStatus('IDLE');
+        return;
       }
-    }, 2000);
-  };
+
+      if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+        // Optional: create booking after successful payment (if we have slotId)
+        try {
+          if (slotId) {
+            await api.post('/bookings', { slot_id: slotId, user_id: null });
+            // Backend will emit socket event so other clients update
+          }
+        } catch (bkErr) {
+          console.warn('Booking creation after payment failed', bkErr);
+          // continue — we still show success to user
+        }
+
+        setStatus('SUCCESS');
+      } else {
+        throw new Error('Payment not completed');
+      }
+    } catch (err) {
+      console.error('handlePayment error', err);
+      alert(err.message || 'Payment failed');
+      setStatus('IDLE');
+    }
+  }, [stripe, elements, total, slotId, slotCode]);
 
   if (status === 'SUCCESS') {
     return (
@@ -140,23 +206,47 @@ export default function Payment() {
           <p><FaCheckCircle className="me-2" /> Instant Reservation Activation</p>
         </div>
 
-        <Button
-          variant="primary"
-          className="w-100 py-3 fw-bold"
-          disabled={status === 'PROCESSING'}
-          onClick={handlePayment}
-        >
-          {status === 'PROCESSING' ? (
-            <><Spinner animation="border" size="sm" className="me-2" /> AUTHORIZING...</>
-          ) : (
-            `PAY $${total.toFixed(2)} NOW`
-          )}
-        </Button>
+        <form onSubmit={handlePayment}>
+          <CardWrapper>
+            <CardElement options={{
+              style: {
+                base: {
+                  color: '#fff',
+                  fontSize: '16px',
+                  '::placeholder': { color: '#94a3b8' },
+                },
+                invalid: { color: '#ff6b6b' }
+              }
+            }} />
+          </CardWrapper>
+
+          <Button
+            variant="primary"
+            className="w-100 py-3 fw-bold"
+            type="submit"
+            disabled={status === 'PROCESSING' || !stripe || !elements}
+          >
+            {status === 'PROCESSING' ? (
+              <><Spinner animation="border" size="sm" className="me-2" /> AUTHORIZING...</>
+            ) : (
+              `PAY $${total.toFixed(2)} NOW`
+            )}
+          </Button>
+        </form>
 
         <Button variant="link" className="mt-3 text-muted text-decoration-none" onClick={() => history.goBack()}>
           Go back to details
         </Button>
       </PaymentCard>
     </Container>
+  );
+}
+
+// Top-level page component that wraps PaymentInner with Elements
+export default function PaymentPageWrapper() {
+  return (
+    <Elements stripe={stripePromise}>
+      <PaymentInner />
+    </Elements>
   );
 }
