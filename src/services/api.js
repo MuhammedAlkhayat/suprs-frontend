@@ -1,15 +1,15 @@
 // src/services/api.js
 import axios from 'axios';
 
-// Default deployed backend
+// Default deployed backend (change if you host elsewhere)
 const DEFAULT_BASE = 'https://suprs-backend.onrender.com';
 
-// Allow overriding with environment variable
+// Prefer explicit env var; fall back to DEFAULT_BASE
 const envBase = (process.env.REACT_APP_API_BASE || '').trim();
-const base = envBase || DEFAULT_BASE;
+const base = (envBase || DEFAULT_BASE).replace(/\/$/, ''); // no trailing slash
 
 const api = axios.create({
-  baseURL: `${base.replace(/\/$/, '')}/api`, // e.g. https://.../api
+  baseURL: base, // e.g. https://suprs-backend.onrender.com  OR https://host/api (if you need prefix)
   timeout: 10000,
 });
 
@@ -29,7 +29,7 @@ export function setAuthToken(token) {
   else delete api.defaults.headers.common.Authorization;
 }
 
-// API wrappers
+// API wrappers (unchanged)
 export async function login({ email, password }) {
   const res = await api.post('/auth/login', { email, password });
   return res.data; // expect { token, user }
