@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/suprs-frontend/static/css/main.daa12ab3.css",
-    "main.js": "/suprs-frontend/static/js/main.11d0ed4f.js",
+    "main.js": "/suprs-frontend/static/js/main.c156d71e.js",
     "index.html": "/suprs-frontend/index.html",
     "main.daa12ab3.css.map": "/suprs-frontend/static/css/main.daa12ab3.css.map",
-    "main.11d0ed4f.js.map": "/suprs-frontend/static/js/main.11d0ed4f.js.map"
+    "main.c156d71e.js.map": "/suprs-frontend/static/js/main.c156d71e.js.map"
   },
   "entrypoints": [
     "static/css/main.daa12ab3.css",
-    "static/js/main.11d0ed4f.js"
+    "static/js/main.c156d71e.js"
   ]
 }
