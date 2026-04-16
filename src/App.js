@@ -2,7 +2,7 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSocket } from './services/socket';
+import socket from './services/socket';
 import ProtectedLayout from './components/ProtectedLayout';
 import NotFound from './pages/NotFound';
 import ToastProvider, { useToast } from './components/ToastProvider';
@@ -56,7 +56,7 @@ function SocketManager() {
 
   useEffect(() => {
     if (!user) return;
-    const socket = getSocket();
+    // socket imported directly
 
     socket.emit('join_user', user.id);
 
