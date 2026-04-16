@@ -1,183 +1,175 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Slider from 'react-slick';
-import { Container, Button, Spinner } from 'react-bootstrap';
-import styled from 'styled-components';
-import { FaParking, FaCarSide } from 'react-icons/fa';
-import { gsap } from 'gsap';
-import api from '../services/api';
-import { useQuery } from '@tanstack/react-query'; // ✅ v5
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Spinner } from 'react-bootstrap';
+import { gsap } from 'gsap';
+import { FaParking, FaCarSide, FaClock, FaCheckCircle } from 'react-icons/fa';
+import api from '../services/api';
+import styled from 'styled-components';
 
 const GlassCard = styled.div`
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  padding: 2rem;
-  margin-top: 2rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  color: #f8fafc;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px; padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 `;
 
-const SlotBox = styled.div`
-  height: 180px;
-  background-color: ${({ $status }) =>
-    $status === 'AVAILABLE' ? 'rgba(34, 197, 94, 0.2)' :
-    $status === 'OCCUPIED'  ? 'rgba(239, 68, 68, 0.2)' :
-                              'rgba(234, 179, 8, 0.2)'};
-  border: 2px solid ${({ $status }) =>
-    $status === 'AVAILABLE' ? '#22c55e' :
-    $status === 'OCCUPIED'  ? '#ef4444' :
-                              '#eab308'};
-  border-radius: 16px;
-  display: flex !important;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: ${({ $status }) => ($status === 'AVAILABLE' ? 'pointer' : 'not-allowed')};
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+const StatCard = styled.div`
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 1.2rem;
+  display: flex; align-items: center; gap: 14px;
+`;
+
+const SlotCard = styled.div`
+  background: ${p => p.$bg};
+  border: 2px solid ${p => p.$border};
+  border-radius: 16px; padding: 16px 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: ${p => p.$clickable ? 'pointer' : 'not-allowed'};
+  transition: transform 0.2s, box-shadow 0.2s;
+  min-height: 150px; justify-content: center;
   &:hover {
-    transform: ${({ $status }) => ($status === 'AVAILABLE' ? 'translateY(-10px)' : 'none')};
-    box-shadow: ${({ $status }) => ($status === 'AVAILABLE' ? '0 0 20px #00d2ff' : 'none')};
+    transform: ${p => p.$clickable ? 'translateY(-6px)' : 'none'};
+    box-shadow: ${p => p.$clickable ? `0 12px 24px ${p.$border}44` : 'none'};
   }
-  color: #f8fafc;
-  font-weight: 700;
-  font-size: 20px;
-  text-align: center;
-  user-select: none;
 `;
 
-const HeaderButtons = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-left: auto;
-`;
+const statusCfg = {
+  AVAILABLE: { bg: 'rgba(34,197,94,0.12)',  border: '#22c55e', color: '#22c55e' },
+  OCCUPIED:  { bg: 'rgba(239,68,68,0.12)',   border: '#ef4444', color: '#ef4444' },
+  RESERVED:  { bg: 'rgba(234,179,8,0.12)',   border: '#eab308', color: '#eab308' },
+};
 
-const Title = styled.h1`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 900;
-  font-size: 2.5rem;
-  color: #00d2ff;
-`;
-
-const Tooltip = styled.div`
-  position: fixed;
-  background: #0f172a;
-  color: #00d2ff;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  pointer-events: none;
-  z-index: 9999;
-`;
+function formatDuration(since) {
+  if (!since) return '';
+  const mins = Math.floor((Date.now() - new Date(since)) / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
-  const cardRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // ✅ v5 syntax
   const { data: slots = [], isLoading, isError } = useQuery({
     queryKey: ['slots'],
-    queryFn: () => api.get('/slots').then(res => res.data),
+    queryFn: () => api.get('/slots').then(r => r.data),
+    refetchInterval: 15000,
   });
 
   useEffect(() => {
-    if (!cardRef.current) return;
-    const anim = gsap.fromTo(
-      cardRef.current,
-      { y: 50, opacity: 0 },
-      {
-        duration: 1, y: 0, opacity: 1, ease: 'power4.out',
-        onComplete() {
-          try { if (cardRef.current) cardRef.current.style.opacity = ''; } catch (e) {}
-        }
-      }
+    if (!containerRef.current || isLoading) return;
+    gsap.fromTo(containerRef.current,
+      { y: 30, opacity: 0 },
+      { duration: 0.7, y: 0, opacity: 1, ease: 'power3.out' }
     );
-    return () => {
-      try {
-        if (anim) anim.kill();
-        if (cardRef.current) cardRef.current.style.opacity = '1';
-      } catch (e) {}
-    };
-  }, []);
+  }, [isLoading]);
 
-  const settings = {
-    dots: true, infinite: true, speed: 600,
-    slidesToShow: 3, slidesToScroll: 1,
-    centerMode: true, centerPadding: '40px',
-    responsive: [
-      { breakpoint: 992, settings: { slidesToShow: 2 } },
-      { breakpoint: 576, settings: { slidesToShow: 1 } },
-    ],
-  };
+  const available = slots.filter(s => s.status === 'AVAILABLE').length;
+  const occupied  = slots.filter(s => s.status === 'OCCUPIED').length;
+  const reserved  = slots.filter(s => s.status === 'RESERVED').length;
 
-  const handleSlotClick = (slot) => {
-    if (slot.status === 'AVAILABLE') {
-      navigate('/booking', { state: { selectedSlot: slot } });
-    }
-  };
+  if (isLoading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <Spinner animation="border" style={{ color: '#00d2ff', width: 48, height: 48 }} />
+    </div>
+  );
 
-  const showTooltip = (e, slot) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({
-      visible: true,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 40,
-      // ✅ use slot_number instead of slot.code
-      text: `${slot.slot_number} - ${slot.status}`,
-    });
-  };
-
-  const hideTooltip = () => setTooltip({ visible: false, x: 0, y: 0, text: '' });
-
-  if (isLoading) return <Container className="text-center mt-5"><Spinner animation="border" /></Container>;
-  if (isError)   return <Container className="text-center mt-5 text-danger">Failed to load slots.</Container>;
+  if (isError) return (
+    <div style={{ textAlign: 'center', padding: 40, color: '#ef4444' }}>
+      <p>Failed to load parking data. Please check your connection.</p>
+    </div>
+  );
 
   return (
-    <Container ref={cardRef} className="d-flex flex-column min-vh-100 py-4">
-      <div className="d-flex align-items-center mb-4">
-        <Title>🅿️ SUPRS Smart Map</Title>
-        <HeaderButtons>
-          <Button variant="secondary" onClick={() => navigate('/admin')}>Admin Panel</Button>
-          <Button variant="danger" onClick={() => { localStorage.clear(); navigate('/login'); }}>Logout</Button>
-        </HeaderButtons>
+    <div ref={containerRef}>
+      {/* Page Title */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontWeight: 900, fontSize: '1.8rem', color: '#00d2ff', marginBottom: 4 }}>
+          🅿️ SUPRS Smart Map
+        </h1>
+        <p style={{ color: '#64748b', margin: 0 }}>Real-time parking availability — click any green slot to book</p>
       </div>
 
-      <GlassCard>
-        <h4>Entrance</h4>
-        <Slider {...settings}>
-          {slots.map(slot => (
-            // ✅ use slot.id instead of slot.slot_id
-            <div key={slot.id}>
-              <SlotBox
-                $status={slot.status}
-                onClick={() => handleSlotClick(slot)}
-                onMouseEnter={(e) => showTooltip(e, slot)}
-                onMouseLeave={hideTooltip}
-                role={slot.status === 'AVAILABLE' ? 'button' : undefined}
-                aria-disabled={slot.status !== 'AVAILABLE' ? 'true' : 'false'}
-              >
-                {slot.status === 'AVAILABLE' && <FaParking size={48} color="#22c55e" />}
-                {slot.status === 'OCCUPIED'  && <FaCarSide size={48} color="#ef4444" />}
-                {slot.status === 'RESERVED'  && <FaParking size={48} color="#eab308" />}
-                {/* ✅ use slot_number instead of code */}
-                <div style={{ marginTop: '10px' }}>{slot.slot_number}</div>
-                <div>{slot.status}</div>
-              </SlotBox>
+      {/* Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 28 }}>
+        {[
+          { count: available, label: 'Available', color: '#22c55e', icon: <FaCheckCircle size={20} />, bg: 'rgba(34,197,94,0.15)' },
+          { count: occupied,  label: 'Occupied',  color: '#ef4444', icon: <FaCarSide size={20} />,    bg: 'rgba(239,68,68,0.15)' },
+          { count: reserved,  label: 'Reserved',  color: '#eab308', icon: <FaClock size={20} />,      bg: 'rgba(234,179,8,0.15)' },
+          { count: slots.length, label: 'Total',  color: '#00d2ff', icon: <FaParking size={20} />,   bg: 'rgba(0,210,255,0.15)' },
+        ].map(s => (
+          <StatCard key={s.label}>
+            <div style={{ width: 44, height: 44, background: s.bg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color, flexShrink: 0 }}>
+              {s.icon}
             </div>
-          ))}
-        </Slider>
-      </GlassCard>
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.count}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{s.label}</div>
+            </div>
+          </StatCard>
+        ))}
+      </div>
 
-      {tooltip.visible && (
-        <Tooltip style={{ left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}>
-          {tooltip.text}
-        </Tooltip>
-      )}
-    </Container>
+      {/* Slot Grid */}
+      <GlassCard>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+          <h4 style={{ margin: 0, fontWeight: 700, color: '#f8fafc' }}>Parking Lot — Live View</h4>
+          <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#64748b' }}>
+            <span><span style={{ color: '#22c55e' }}>●</span> Available</span>
+            <span><span style={{ color: '#ef4444' }}>●</span> Occupied</span>
+            <span><span style={{ color: '#eab308' }}>●</span> Reserved</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14 }}>
+          {slots.map(slot => {
+            const cfg = statusCfg[slot.status] || statusCfg.AVAILABLE;
+            const isAvailable = slot.status === 'AVAILABLE';
+            return (
+              <SlotCard
+                key={slot.id}
+                $bg={cfg.bg} $border={cfg.border} $clickable={isAvailable}
+                onClick={() => isAvailable && navigate('/booking', { state: { selectedSlot: slot } })}
+                role={isAvailable ? 'button' : undefined}
+                aria-label={`Slot ${slot.slot_number} - ${slot.status}`}
+              >
+                {slot.status === 'AVAILABLE' && <FaParking size={32} color="#22c55e" />}
+                {slot.status === 'OCCUPIED'  && <FaCarSide size={32} color="#ef4444" />}
+                {slot.status === 'RESERVED'  && <FaParking size={32} color="#eab308" />}
+
+                <div style={{ fontWeight: 800, fontSize: 16, color: '#f8fafc' }}>{slot.slot_number}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: cfg.color, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {slot.status}
+                </div>
+
+                {slot.status === 'OCCUPIED' && slot.occupied_since && (
+                  <div style={{ fontSize: 10, color: '#94a3b8', textAlign: 'center', marginTop: 2 }}>
+                    <div><FaClock size={9} /> {formatDuration(slot.occupied_since)}</div>
+                    {slot.occupant_email && (
+                      <div style={{ marginTop: 2 }}>👤 {slot.occupant_email.split('@')[0]}</div>
+                    )}
+                  </div>
+                )}
+
+                {isAvailable && (
+                  <div style={{ fontSize: 11, color: '#00d2ff', marginTop: 2, fontWeight: 600 }}>
+                    ${slot.price_per_hour || 5}/hr
+                  </div>
+                )}
+              </SlotCard>
+            );
+          })}
+        </div>
+
+        {slots.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569' }}>
+            No parking slots found. Ask admin to add slots.
+          </div>
+        )}
+      </GlassCard>
+    </div>
   );
 }

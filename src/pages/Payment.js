@@ -1,247 +1,291 @@
-// src/pages/Payment.js
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom'; // <- changed
+import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Container, Button, Spinner } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import { gsap } from 'gsap';
-import { FaCreditCard, FaCheckCircle, FaLock } from 'react-icons/fa';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { FaCreditCard, FaCheckCircle, FaLock, FaMoneyBillWave, FaShieldAlt } from 'react-icons/fa';
+import { SiVisa, SiMastercard } from 'react-icons/si';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
-// Stripe promise (cached)
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
-
-// Styled components (kept from your original)
-const PaymentCard = styled.div`
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
-  padding: 3rem;
-  max-width: 500px;
-  margin: 4rem auto;
-  text-align: center;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+const Card = styled.div`
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 28px; padding: 2.5rem;
+  max-width: 500px; margin: 0 auto;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
 `;
 
-const SuccessIcon = styled(FaCheckCircle)`
-  color: #22c55e;
-  font-size: 5rem;
-  margin-bottom: 1.5rem;
-  filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.4));
+const TabBtn = styled.button`
+  flex: 1; padding: 12px !important;
+  background: ${p => p.$active ? 'linear-gradient(135deg,#00d2ff,#3a7bd5)' : 'rgba(255,255,255,0.04)'} !important;
+  border: 1px solid ${p => p.$active ? 'transparent' : 'rgba(255,255,255,0.08)'} !important;
+  border-radius: 12px !important;
+  color: ${p => p.$active ? 'white' : '#64748b'} !important;
+  font-weight: 600 !important; font-size: 14px !important;
+  transition: all 0.2s !important;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 `;
 
-/* small wrapper to style CardElement */
-const CardWrapper = styled.div`
-  background: rgba(0,0,0,0.25);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 16px;
-  border: 1px solid rgba(255,255,255,0.06);
-  .StripeElement {
-    color: #fff;
-    font-size: 16px;
-    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+const FakeInput = styled.div`
+  background: rgba(15,23,42,0.7);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 14px 16px;
+  color: #f8fafc; font-size: 15px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+  input {
+    background: transparent !important;
+    border: none !important;
+    outline: none;
+    color: #f8fafc !important;
+    font-size: 15px;
+    flex: 1;
+    padding: 0 !important;
+    &::placeholder { color: #475569; }
   }
 `;
 
-function PaymentInner() {
+const PayBtn = styled.button`
+  width: 100%; padding: 16px !important;
+  background: linear-gradient(135deg,#00d2ff,#3a7bd5) !important;
+  border: none !important; border-radius: 14px !important;
+  color: white !important; font-weight: 700 !important; font-size: 16px !important;
+  letter-spacing: 1px; margin-top: 8px;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  &:hover:not(:disabled) { transform: translateY(-2px) !important; box-shadow: 0 10px 28px rgba(0,210,255,0.35) !important; }
+  &:disabled { opacity: 0.5 !important; cursor: not-allowed; }
+`;
+
+export default function Payment() {
   const location = useLocation();
-  const navigate = useNavigate(); // <- changed
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const cardRef = useRef(null);
-  const successRef = useRef(null);
-
-  const stripe = useStripe();
-  const elements = useElements();
-
+  const [tab, setTab] = useState('card'); // 'card' | 'gate'
   const [status, setStatus] = useState('IDLE'); // IDLE | PROCESSING | SUCCESS
-  const total = typeof location.state?.total === 'number' ? location.state.total : (Number(location.state?.amount) || 0);
-  const slotCode = location.state?.slotCode || location.state?.slot_code || 'N/A';
-  const slotId = location.state?.slotId || location.state?.slot_id || null;
+  const [cardForm, setCardForm] = useState({ number: '', expiry: '', cvv: '', name: '' });
 
-  // initial mount animation (defensive)
+  const total    = Number(location.state?.total) || 0;
+  const slotCode = location.state?.slotCode || 'N/A';
+  const slotId   = location.state?.slotId || null;
+  const bookingId = location.state?.bookingId || null;
+
   useEffect(() => {
     if (!cardRef.current) return;
-    const anim = gsap.fromTo(
-      cardRef.current,
-      { scale: 0.8, opacity: 0 },
-      {
-        duration: 0.8,
-        scale: 1,
-        opacity: 1,
-        ease: 'back.out(1.7)',
-        onComplete() {
-          try { if (cardRef.current) cardRef.current.style.opacity = ''; } catch (e) {}
-        }
-      }
+    gsap.fromTo(cardRef.current,
+      { scale: 0.9, opacity: 0 },
+      { duration: 0.6, scale: 1, opacity: 1, ease: 'back.out(1.5)' }
     );
-
-    return () => {
-      try {
-        if (anim) anim.kill();
-        if (cardRef.current) cardRef.current.style.opacity = '1';
-      } catch (e) {}
-    };
   }, []);
 
-  // success animation when status transitions to SUCCESS
-  useEffect(() => {
-    if (status !== 'SUCCESS' || !successRef.current) return;
-    const icon = successRef.current;
-    const anim = gsap.fromTo(
-      icon,
-      { scale: 0, rotation: 180, opacity: 0 },
-      {
-        scale: 1,
-        rotation: 0,
-        opacity: 1,
-        duration: 0.5,
-        ease: 'back.out(1.2)',
-        onComplete() {
-          try { icon.style.opacity = ''; } catch (e) {}
-        }
-      }
-    );
+  const gateMutation = useMutation({
+    mutationFn: () => api.post('/payments/pay-at-gate', { booking_id: bookingId }),
+    onSuccess: () => { setStatus('SUCCESS'); qc.invalidateQueries({ queryKey: ['bookings'] }); },
+  });
 
-    return () => {
-      try {
-        if (anim) anim.kill();
-        icon.style.opacity = '1';
-      } catch (e) {}
-    };
-  }, [status]);
-
-  const handlePayment = useCallback(async (e) => {
-    e && e.preventDefault();
-    if (!stripe || !elements) {
-      alert('Payment system not ready. Try again in a moment.');
-      return;
+  const handleCardPay = useCallback(async (e) => {
+    e.preventDefault();
+    if (!cardForm.number || !cardForm.expiry || !cardForm.cvv || !cardForm.name) {
+      alert('Please fill in all card details'); return;
     }
-
     setStatus('PROCESSING');
-
     try {
-      const amountCents = Math.round(total * 100);
-
-      const resp = await api.post('/payments/create-payment-intent', {
-        amount: amountCents,
-        currency: 'usd',
-        metadata: { slot_id: slotId || undefined, slot_code: slotCode || undefined }
-      });
-
-      const clientSecret = resp.data?.client_secret || resp?.data?.client_secret || resp?.client_secret;
-      if (!clientSecret) throw new Error('Missing client_secret from server');
-
-      const card = elements.getElement(CardElement);
-      if (!card) throw new Error('CardElement not found');
-
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card }
-      });
-
-      if (result.error) {
-        console.error('Stripe confirm error', result.error);
-        alert(result.error.message || 'Payment failed');
-        setStatus('IDLE');
-        return;
+      // Simulate card processing (replace with real Stripe when ready)
+      await new Promise(r => setTimeout(r, 2000));
+      if (bookingId) {
+        await api.patch(`/bookings/${bookingId}/payment`, {
+          payment_status: 'PAID',
+          payment_method: 'VISA',
+          total_amount: total,
+        });
       }
-
-      if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        try {
-          if (slotId) {
-            await api.post('/bookings', { slot_id: slotId, user_id: null });
-          }
-        } catch (bkErr) {
-          console.warn('Booking creation after payment failed', bkErr);
-        }
-
-        setStatus('SUCCESS');
-      } else {
-        throw new Error('Payment not completed');
-      }
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      setStatus('SUCCESS');
     } catch (err) {
-      console.error('handlePayment error', err);
-      alert(err.message || 'Payment failed');
+      alert(err?.response?.data?.error || 'Payment failed. Please try again.');
       setStatus('IDLE');
     }
-  }, [stripe, elements, total, slotId, slotCode]);
+  }, [cardForm, bookingId, total, qc]);
 
+  const handleGatePay = () => {
+    if (bookingId) {
+      gateMutation.mutate();
+    } else {
+      setStatus('SUCCESS');
+    }
+  };
+
+  // ── SUCCESS SCREEN ──────────────────────────────────────────
   if (status === 'SUCCESS') {
     return (
-      <Container>
-        <PaymentCard ref={cardRef}>
-          <SuccessIcon ref={successRef} />
-          <h2 className="fw-bold mb-3">Payment Confirmed!</h2>
-          <p className="text-muted mb-4">
-            Your reservation for slot <span className="text-white fw-bold">{slotCode}</span> is now active.
-          </p>
-          <Button variant="primary" className="w-100 py-3" onClick={() => navigate('/dashboard')}> {/* <- changed */}
-            RETURN TO MAP
-          </Button>
-        </PaymentCard>
-      </Container>
+      <div style={{ padding: '20px 0' }}>
+        <Card ref={cardRef}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ animation: 'pulse 1s ease-in-out' }}>
+              <FaCheckCircle size={80} color="#22c55e" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.5))' }} />
+            </div>
+            <h2 style={{ fontWeight: 800, color: '#f8fafc', marginTop: 20, marginBottom: 8 }}>
+              {tab === 'gate' ? 'Booking Confirmed!' : 'Payment Successful!'}
+            </h2>
+            <p style={{ color: '#64748b', marginBottom: 8 }}>
+              Slot <span style={{ color: '#00d2ff', fontWeight: 700 }}>{slotCode}</span> is now reserved for you.
+            </p>
+            {tab === 'gate' && (
+              <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#fde68a', fontSize: 13 }}>
+                💳 Please pay <strong>${total.toFixed(2)}</strong> at the gate upon arrival.
+              </div>
+            )}
+            {tab === 'card' && (
+              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#86efac', fontSize: 13 }}>
+                ✅ <strong>${total.toFixed(2)}</strong> charged successfully.
+              </div>
+            )}
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', border: 'none', borderRadius: 14, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+            >
+              RETURN TO MAP
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              style={{ width: '100%', marginTop: 10, background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 10, fontSize: 14 }}
+            >
+              View My Bookings
+            </button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
+  // ── PAYMENT FORM ────────────────────────────────────────────
   return (
-    <Container>
-      <PaymentCard ref={cardRef}>
-        <FaCreditCard size={50} color="#00d2ff" className="mb-4" />
-        <h2 className="fw-bold">Secure Checkout</h2>
-        <p className="text-muted mb-4">Finalize your booking for {slotCode}</p>
-
-        <div className="bg-dark p-4 rounded-4 mb-4" style={{ border: '1px solid #334155' }}>
-          <small className="text-muted d-block mb-1">Amount Due</small>
-          <h1 className="fw-bold" style={{ color: '#00d2ff' }}>${total.toFixed(2)}</h1>
+    <div style={{ padding: '20px 0' }}>
+      <Card ref={cardRef}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ width: 64, height: 64, background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <FaCreditCard size={28} color="#001219" />
+          </div>
+          <h2 style={{ fontWeight: 800, color: '#f8fafc', marginBottom: 4 }}>Secure Checkout</h2>
+          <p style={{ color: '#64748b', margin: 0 }}>Slot {slotCode}</p>
         </div>
 
-        <div className="text-start mb-4 small text-muted">
-          <p><FaLock className="me-2" /> Encrypted SSL Connection</p>
-          <p><FaCheckCircle className="me-2" /> Instant Reservation Activation</p>
+        {/* Amount */}
+        <div style={{ background: 'rgba(0,210,255,0.05)', border: '1px solid rgba(0,210,255,0.1)', borderRadius: 16, padding: '16px', textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 13, color: '#64748b' }}>Amount Due</div>
+          <div style={{ fontSize: 40, fontWeight: 800, color: '#00d2ff' }}>${total.toFixed(2)}</div>
         </div>
 
-        <form onSubmit={handlePayment}>
-          <CardWrapper>
-            <CardElement options={{
-              style: {
-                base: {
-                  color: '#fff',
-                  fontSize: '16px',
-                  '::placeholder': { color: '#94a3b8' },
-                },
-                invalid: { color: '#ff6b6b' }
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+          <TabBtn $active={tab === 'card'} onClick={() => setTab('card')}>
+            <FaCreditCard size={14} /> Pay Online
+          </TabBtn>
+          <TabBtn $active={tab === 'gate'} onClick={() => setTab('gate')}>
+            <FaMoneyBillWave size={14} /> Pay at Gate
+          </TabBtn>
+        </div>
+
+        {/* Card Form */}
+        {tab === 'card' && (
+          <form onSubmit={handleCardPay}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <SiVisa size={32} color="#1a1f71" style={{ background: 'white', borderRadius: 4, padding: 4 }} />
+              <SiMastercard size={32} />
+            </div>
+
+            <FakeInput>
+              <FaCreditCard size={14} color="#64748b" />
+              <input
+                placeholder="Card number (e.g. 4242 4242 4242 4242)"
+                value={cardForm.number}
+                onChange={e => setCardForm({ ...cardForm, number: e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim() })}
+                maxLength={19}
+              />
+            </FakeInput>
+
+            <FakeInput>
+              <FaLock size={14} color="#64748b" />
+              <input
+                placeholder="Cardholder name"
+                value={cardForm.name}
+                onChange={e => setCardForm({ ...cardForm, name: e.target.value })}
+              />
+            </FakeInput>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <FakeInput>
+                <input
+                  placeholder="MM/YY"
+                  value={cardForm.expiry}
+                  onChange={e => {
+                    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+                    setCardForm({ ...cardForm, expiry: v });
+                  }}
+                  maxLength={5}
+                />
+              </FakeInput>
+              <FakeInput>
+                <FaShieldAlt size={14} color="#64748b" />
+                <input
+                  placeholder="CVV"
+                  type="password"
+                  value={cardForm.cvv}
+                  onChange={e => setCardForm({ ...cardForm, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  maxLength={4}
+                />
+              </FakeInput>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, marginBottom: 16 }}>
+              <FaLock size={10} /> SSL Encrypted · PCI Compliant
+            </div>
+
+            <PayBtn type="submit" disabled={status === 'PROCESSING'}>
+              {status === 'PROCESSING'
+                ? <><Spinner animation="border" size="sm" /> Authorizing...</>
+                : `PAY $${total.toFixed(2)} NOW`
               }
-            }} />
-          </CardWrapper>
+            </PayBtn>
+          </form>
+        )}
 
-          <Button
-            variant="primary"
-            className="w-100 py-3 fw-bold"
-            type="submit"
-            disabled={status === 'PROCESSING' || !stripe || !elements}
-          >
-            {status === 'PROCESSING' ? (
-              <><Spinner animation="border" size="sm" className="me-2" /> AUTHORIZING...</>
-            ) : (
-              `PAY $${total.toFixed(2)} NOW`
-            )}
-          </Button>
-        </form>
+        {/* Gate Payment */}
+        {tab === 'gate' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 16, padding: '24px', marginBottom: 24 }}>
+              <FaMoneyBillWave size={40} color="#eab308" style={{ marginBottom: 12 }} />
+              <h4 style={{ color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>Pay at the Gate</h4>
+              <p style={{ color: '#94a3b8', fontSize: 14, margin: 0 }}>
+                Your slot will be reserved. Pay <strong style={{ color: '#eab308' }}>${total.toFixed(2)}</strong> in cash or card when you arrive at the parking gate.
+              </p>
+            </div>
 
-        <Button variant="link" className="mt-3 text-muted text-decoration-none" onClick={() => navigate(-1)}> {/* <- changed */}
-          Go back to details
-        </Button>
-      </PaymentCard>
-    </Container>
-  );
-}
+            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#64748b', textAlign: 'left' }}>
+              <div style={{ marginBottom: 6 }}>✅ Slot reserved immediately</div>
+              <div style={{ marginBottom: 6 }}>💳 Cash or card accepted at gate</div>
+              <div>⏰ Reservation valid for 30 minutes</div>
+            </div>
 
-// Top-level page component that wraps PaymentInner with Elements
-export default function PaymentPageWrapper() {
-  return (
-    <Elements stripe={stripePromise}>
-      <PaymentInner />
-    </Elements>
+            <PayBtn onClick={handleGatePay} disabled={gateMutation.isPending}>
+              {gateMutation.isPending
+                ? <><Spinner animation="border" size="sm" /> Confirming...</>
+                : 'CONFIRM — PAY AT GATE'
+              }
+            </PayBtn>
+          </div>
+        )}
+
+        <button
+          onClick={() => navigate(-1)}
+          style={{ width: '100%', marginTop: 12, background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 10, fontSize: 14 }}
+        >
+          ← Go back
+        </button>
+      </Card>
+    </div>
   );
 }

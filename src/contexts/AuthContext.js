@@ -1,38 +1,41 @@
-import React, { createContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { createContext, useContext, useState } from 'react';
+import { setAuthToken } from '../services/api';
 
-export const AuthContext = createContext();
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('suprs_user');
-    return stored ? JSON.parse(stored) : null;
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   });
-  const [token, setToken] = useState(() => localStorage.getItem('suprs_token') || null);
+  const [token, setTokenState] = useState(() => localStorage.getItem('token') || null);
 
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('suprs_token', token);
-      api.setToken(token);
-    } else {
-      localStorage.removeItem('suprs_token');
-      api.setToken(null);
-    }
-  }, [token]);
+  const setToken = (t) => {
+    setTokenState(t);
+    if (t) { localStorage.setItem('token', t); setAuthToken(t); }
+    else { localStorage.removeItem('token'); setAuthToken(null); }
+  };
 
-  useEffect(() => {
-    if (user) localStorage.setItem('suprs_user', JSON.stringify(user));
-    else localStorage.removeItem('suprs_user');
-  }, [user]);
+  const signIn = (userData, tokenValue) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(tokenValue);
+  };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, token, setToken, logout }}>
+    <AuthContext.Provider value={{ user, token, signIn, logout, setUser, setToken }}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

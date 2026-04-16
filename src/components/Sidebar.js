@@ -1,28 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  FaBars,
-  FaTachometerAlt,
-  FaTicketAlt,
-  FaCreditCard,
-  FaUserShield,
-  FaChartLine,
-  FaProjectDiagram,
-  FaDatabase,
-  FaUser,
-  FaRegListAlt,
-  FaTasks
+  FaTachometerAlt, FaTicketAlt, FaCreditCard,
+  FaUserShield, FaChartLine, FaUser, FaTimes
 } from 'react-icons/fa';
+import { useAuth } from '../hooks/useAuth';
 
-/* Use transient prop `$collapsed` so styled-components can read it
-   but it will NOT be forwarded to the DOM as an attribute. */
 const SidebarContainer = styled.nav`
   width: ${p => (p.$collapsed ? '64px' : '220px')};
   min-width: ${p => (p.$collapsed ? '64px' : '220px')};
-  background: rgba(8,10,15,0.85);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(8,10,15,0.9);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: white;
   padding: 14px 8px;
   position: fixed;
@@ -30,9 +20,28 @@ const SidebarContainer = styled.nav`
   top: var(--header-height, 70px);
   height: calc(100vh - var(--header-height, 70px));
   z-index: 1200;
-  border-right: 1px solid rgba(255,255,255,0.04);
-  transition: width 0.22s ease, left 0.22s ease;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  transition: width 0.22s ease, transform 0.22s ease;
   overflow-y: auto;
+  overflow-x: hidden;
+
+  @media (max-width: 900px) {
+    transform: ${p => (p.$mobileOpen ? 'translateX(0)' : 'translateX(-100%)')};
+    width: 240px;
+    min-width: 240px;
+    box-shadow: ${p => (p.$mobileOpen ? '4px 0 20px rgba(0,0,0,0.5)' : 'none')};
+  }
+`;
+
+const Overlay = styled.div`
+  display: none;
+  @media (max-width: 900px) {
+    display: ${p => (p.$show ? 'block' : 'none')};
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1199;
+  }
 `;
 
 const Brand = styled.div`
@@ -40,203 +49,125 @@ const Brand = styled.div`
   align-items: center;
   gap: 10px;
   padding: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   font-weight: 800;
   color: #00d2ff;
   font-size: 1rem;
 `;
 
-const Toggle = styled.button`
-  background: transparent;
-  border: none;
-  color: #cbd5e1;
-  cursor: pointer;
-  width: 100%;
-  display:flex;
-  justify-content: ${p => (p.$collapsed ? 'center' : 'flex-end')};
-  padding: 6px;
-  margin-bottom: 6px;
-`;
-
 const Menu = styled.ul`
   list-style: none;
-  padding: 6px;
+  padding: 0;
   margin: 0;
 `;
 
 const MenuItem = styled.li`
-  margin: 6px 0;
+  margin: 4px 0;
 `;
 
 const StyledLink = styled(NavLink)`
-  display:flex;
-  align-items:center;
+  display: flex;
+  align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: #cbd5e1;
-  padding: 10px;
-  border-radius: 8px;
-  transition: background 0.12s ease, color 0.12s ease;
+  color: #94a3b8;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
   &.active {
-    background: linear-gradient(90deg, rgba(0,210,255,0.08), rgba(58,123,213,0.06));
+    background: linear-gradient(90deg, rgba(0,210,255,0.12), rgba(58,123,213,0.08));
     color: #00d2ff;
-    box-shadow: 0 6px 18px rgba(0,210,255,0.06);
+    box-shadow: 0 4px 12px rgba(0,210,255,0.08);
   }
-  &:hover {
-    background: rgba(255,255,255,0.02);
-    color: #ffffff;
+  &:hover:not(.active) {
+    background: rgba(255,255,255,0.04);
+    color: #e2e8f0;
   }
 `;
 
 const Label = styled.span`
   display: ${p => (p.$collapsed ? 'none' : 'inline')};
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+`;
+
+const Divider = styled.hr`
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin: 10px 0;
 `;
 
 export default function Sidebar({ collapsed = false }) {
-  // Keep accepting `collapsed` for API compatibility, but we only use it to init local state.
   const [isCollapsed, setCollapsed] = useState(collapsed);
-
-  useEffect(() => {
-    const className = 'sidebar-collapsed';
-    if (isCollapsed) {
-      document.body.classList.add(className);
-    } else {
-      document.body.classList.remove(className);
-    }
-    return () => {
-      document.body.classList.remove(className);
-    };
-  }, [isCollapsed]);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handler = () => {
-      setCollapsed(s => !s);
+      if (window.innerWidth <= 900) {
+        setMobileOpen(s => !s);
+      } else {
+        setCollapsed(s => !s);
+      }
     };
     window.addEventListener('toggleSidebar', handler);
-    return () => {
-      window.removeEventListener('toggleSidebar', handler);
-    };
+    return () => window.removeEventListener('toggleSidebar', handler);
   }, []);
 
-  const toggle = () => setCollapsed(s => !s);
+  const closeMobile = () => setMobileOpen(false);
+
+  const navItems = [
+    { to: '/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard' },
+    { to: '/booking', icon: <FaTicketAlt />, label: 'Booking' },
+    { to: '/payment', icon: <FaCreditCard />, label: 'Payments' },
+    { to: '/profile', icon: <FaUser />, label: 'Profile' },
+  ];
+
+  const adminItems = [
+    { to: '/admin', icon: <FaUserShield />, label: 'Admin Panel' },
+    { to: '/reports', icon: <FaChartLine />, label: 'Reports' },
+  ];
 
   return (
-    <SidebarContainer
-      /* pass transient prop so it is NOT forwarded to the DOM */
-      $collapsed={isCollapsed}
-      role="navigation"
-      aria-label="Main sidebar"
-      aria-expanded={!isCollapsed}
-    >
-      <Brand>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            background: '#0ea5e9',
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#001219',
-            fontWeight: 900
-          }}
-          aria-hidden="true"
-        >
-          P
-        </div>
-        <div style={{ display: isCollapsed ? 'none' : 'block' }}>
-          SUPRS
-        </div>
-      </Brand>
+    <>
+      <Overlay $show={mobileOpen} onClick={closeMobile} />
+      <SidebarContainer $collapsed={isCollapsed} $mobileOpen={mobileOpen} role="navigation" aria-label="Main sidebar">
+        <Brand>
+          <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#001219', fontWeight: 900, flexShrink: 0 }}>P</div>
+          <span style={{ display: isCollapsed ? 'none' : 'block' }}>SUPRS</span>
+          {mobileOpen && (
+            <button onClick={closeMobile} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
+              <FaTimes />
+            </button>
+          )}
+        </Brand>
 
-      <Toggle
-        /* transient prop here too */
-        $collapsed={isCollapsed}
-        onClick={toggle}
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-pressed={isCollapsed}
-      >
-        <FaBars />
-      </Toggle>
+        <Menu>
+          {navItems.map(item => (
+            <MenuItem key={item.to}>
+              <StyledLink to={item.to} onClick={closeMobile}>
+                {item.icon}
+                <Label $collapsed={isCollapsed}>{item.label}</Label>
+              </StyledLink>
+            </MenuItem>
+          ))}
 
-      <Menu>
-        <MenuItem>
-          <StyledLink to="/dashboard" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaTachometerAlt />
-            <Label $collapsed={isCollapsed}>Map</Label>
-          </StyledLink>
-        </MenuItem>
-
-        {/* ... other menu items -- ensure Label receives $collapsed ... */}
-
-        <MenuItem>
-          <StyledLink to="/booking" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaTicketAlt />
-            <Label $collapsed={isCollapsed}>Booking</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/payment" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaCreditCard />
-            <Label $collapsed={isCollapsed}>Payment</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/admin" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaUserShield />
-            <Label $collapsed={isCollapsed}>Admin</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/reports" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaChartLine />
-            <Label $collapsed={isCollapsed}>Reports</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.04)', margin: '12px 0' }} />
-
-        <MenuItem>
-          <StyledLink to="/diagrams/usecase" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaRegListAlt />
-            <Label $collapsed={isCollapsed}>Use Case</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/diagrams/class" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaProjectDiagram />
-            <Label $collapsed={isCollapsed}>Class Diagram</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/diagrams/activity" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaTasks />
-            <Label $collapsed={isCollapsed}>Activity Diagram</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/diagrams/er" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaDatabase />
-            <Label $collapsed={isCollapsed}>ER Diagram</Label>
-          </StyledLink>
-        </MenuItem>
-
-        <MenuItem>
-          <StyledLink to="/profile" className={({isActive}) => (isActive ? 'active' : '')}>
-            <FaUser />
-            <Label $collapsed={isCollapsed}>Profile</Label>
-          </StyledLink>
-        </MenuItem>
-      </Menu>
-    </SidebarContainer>
+          {user?.role === 'ADMIN' && (
+            <>
+              <Divider />
+              {adminItems.map(item => (
+                <MenuItem key={item.to}>
+                  <StyledLink to={item.to} onClick={closeMobile}>
+                    {item.icon}
+                    <Label $collapsed={isCollapsed}>{item.label}</Label>
+                  </StyledLink>
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </Menu>
+      </SidebarContainer>
+    </>
   );
 }
