@@ -5,10 +5,9 @@ import styled from 'styled-components';
 import { FaParking, FaCarSide } from 'react-icons/fa';
 import { gsap } from 'gsap';
 import api from '../services/api';
-import { useQuery } from 'react-query';
-import { useHistory } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query'; // ✅ v5
+import { useNavigate } from 'react-router-dom';
 
-// --- Styled Components ---
 const GlassCard = styled.div`
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(15px);
@@ -21,17 +20,16 @@ const GlassCard = styled.div`
   color: #f8fafc;
 `;
 
-/* Transient prop: use $status so it won't be forwarded to the DOM */
 const SlotBox = styled.div`
   height: 180px;
   background-color: ${({ $status }) =>
     $status === 'AVAILABLE' ? 'rgba(34, 197, 94, 0.2)' :
-    $status === 'OCCUPIED' ? 'rgba(239, 68, 68, 0.2)' :
-    'rgba(234, 179, 8, 0.2)'};
+    $status === 'OCCUPIED'  ? 'rgba(239, 68, 68, 0.2)' :
+                              'rgba(234, 179, 8, 0.2)'};
   border: 2px solid ${({ $status }) =>
     $status === 'AVAILABLE' ? '#22c55e' :
-    $status === 'OCCUPIED' ? '#ef4444' :
-    '#eab308'};
+    $status === 'OCCUPIED'  ? '#ef4444' :
+                              '#eab308'};
   border-radius: 16px;
   display: flex !important;
   flex-direction: column;
@@ -65,10 +63,6 @@ const Title = styled.h1`
   color: #00d2ff;
 `;
 
-const IconWrapper = styled.div`
-  font-size: 2.8rem;
-`;
-
 const Tooltip = styled.div`
   position: fixed;
   background: #0f172a;
@@ -77,43 +71,33 @@ const Tooltip = styled.div`
   border-radius: 8px;
   font-size: 0.9rem;
   pointer-events: none;
-  opacity: 1;
-  transition: opacity 0.15s ease;
-  z-index: 9999; /* very high so it's above overlays */
+  z-index: 9999;
 `;
 
-// --- React Component ---
 export default function Dashboard() {
-  const history = useHistory();
+  const navigate = useNavigate();
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
   const cardRef = useRef(null);
 
-  // Fetch slots with React Query
-  const { data: slots, isLoading, isError } = useQuery('slots', () =>
-    api.get('/slots').then(res => res.data)
-  );
+  // ✅ v5 syntax
+  const { data: slots = [], isLoading, isError } = useQuery({
+    queryKey: ['slots'],
+    queryFn: () => api.get('/slots').then(res => res.data),
+  });
 
-  // GSAP animation on mount — use fromTo and cleanup to avoid leaving opacity at 0
   useEffect(() => {
     if (!cardRef.current) return;
-
     const anim = gsap.fromTo(
       cardRef.current,
-      { y: 50, opacity: 0 }, // explicit start
+      { y: 50, opacity: 0 },
       {
-        duration: 1,
-        y: 0,
-        opacity: 1,
-        ease: 'power4.out',
+        duration: 1, y: 0, opacity: 1, ease: 'power4.out',
         onComplete() {
-          // remove inline opacity to let CSS be authoritative afterwards
           try { if (cardRef.current) cardRef.current.style.opacity = ''; } catch (e) {}
         }
       }
     );
-
     return () => {
-      // kill animation and ensure element is visible when unmounting/navigating away
       try {
         if (anim) anim.kill();
         if (cardRef.current) cardRef.current.style.opacity = '1';
@@ -121,15 +105,10 @@ export default function Dashboard() {
     };
   }, []);
 
-  // react-slick settings
   const settings = {
-    dots: true,
-    infinite: true,
-    speed: 600,
-    slidesToShow: 3,
-    slidesToScroll: 1,
-    centerMode: true,
-    centerPadding: '40px',
+    dots: true, infinite: true, speed: 600,
+    slidesToShow: 3, slidesToScroll: 1,
+    centerMode: true, centerPadding: '40px',
     responsive: [
       { breakpoint: 992, settings: { slidesToShow: 2 } },
       { breakpoint: 576, settings: { slidesToShow: 1 } },
@@ -137,9 +116,8 @@ export default function Dashboard() {
   };
 
   const handleSlotClick = (slot) => {
-    // guard — only navigate if available
     if (slot.status === 'AVAILABLE') {
-      history.push({ pathname: '/booking', state: { selectedSlot: slot } });
+      navigate('/booking', { state: { selectedSlot: slot } });
     }
   };
 
@@ -149,26 +127,23 @@ export default function Dashboard() {
       visible: true,
       x: rect.left + rect.width / 2,
       y: rect.top - 40,
-      text: `${slot.code} - ${slot.status} - $${slot.price_per_hour}/hr`,
+      // ✅ use slot_number instead of slot.code
+      text: `${slot.slot_number} - ${slot.status}`,
     });
   };
 
-  const hideTooltip = () => {
-    setTooltip({ visible: false, x: 0, y: 0, text: '' });
-  };
+  const hideTooltip = () => setTooltip({ visible: false, x: 0, y: 0, text: '' });
 
   if (isLoading) return <Container className="text-center mt-5"><Spinner animation="border" /></Container>;
-  if (isError) return <Container className="text-center mt-5 text-danger">Failed to load slots.</Container>;
+  if (isError)   return <Container className="text-center mt-5 text-danger">Failed to load slots.</Container>;
 
   return (
     <Container ref={cardRef} className="d-flex flex-column min-vh-100 py-4">
       <div className="d-flex align-items-center mb-4">
-        <Title>
-          <IconWrapper>🅿️</IconWrapper> SUPRS Smart Map
-        </Title>
+        <Title>🅿️ SUPRS Smart Map</Title>
         <HeaderButtons>
-          <Button variant="secondary" onClick={() => history.push('/admin')}>Admin Panel</Button>
-          <Button variant="danger" onClick={() => { localStorage.clear(); history.push('/login'); }}>Logout</Button>
+          <Button variant="secondary" onClick={() => navigate('/admin')}>Admin Panel</Button>
+          <Button variant="danger" onClick={() => { localStorage.clear(); navigate('/login'); }}>Logout</Button>
         </HeaderButtons>
       </div>
 
@@ -176,22 +151,22 @@ export default function Dashboard() {
         <h4>Entrance</h4>
         <Slider {...settings}>
           {slots.map(slot => (
-            // wrap each slide with a div as expected by react-slick
-            <div key={slot.slot_id}>
+            // ✅ use slot.id instead of slot.slot_id
+            <div key={slot.id}>
               <SlotBox
-                $status={slot.status}                 // transient prop — won't be forwarded to DOM
-                onClick={() => handleSlotClick(slot)} // handler already guards
+                $status={slot.status}
+                onClick={() => handleSlotClick(slot)}
                 onMouseEnter={(e) => showTooltip(e, slot)}
                 onMouseLeave={hideTooltip}
                 role={slot.status === 'AVAILABLE' ? 'button' : undefined}
-                aria-disabled={slot.status === 'AVAILABLE' ? 'false' : 'true'}
+                aria-disabled={slot.status !== 'AVAILABLE' ? 'true' : 'false'}
               >
                 {slot.status === 'AVAILABLE' && <FaParking size={48} color="#22c55e" />}
-                {slot.status === 'OCCUPIED' && <FaCarSide size={48} color="#ef4444" />}
-                {slot.status === 'RESERVED' && <FaParking size={48} color="#eab308" />}
-                <div style={{ marginTop: '10px' }}>{slot.code}</div>
+                {slot.status === 'OCCUPIED'  && <FaCarSide size={48} color="#ef4444" />}
+                {slot.status === 'RESERVED'  && <FaParking size={48} color="#eab308" />}
+                {/* ✅ use slot_number instead of code */}
+                <div style={{ marginTop: '10px' }}>{slot.slot_number}</div>
                 <div>{slot.status}</div>
-                <small>${slot.price_per_hour}/hr</small>
               </SlotBox>
             </div>
           ))}

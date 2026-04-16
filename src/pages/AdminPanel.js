@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import api from '../services/api';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom'; // <- changed
 
 export default function AdminPanel() {
   const [lotName, setLotName] = useState('');
   const [message, setMessage] = useState('');
-  const history = useHistory();
+  const navigate = useNavigate(); // <- changed
 
   const addLot = async (e) => {
     e.preventDefault();
@@ -23,7 +23,7 @@ export default function AdminPanel() {
   return (
     <div style={{ padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {/* Back Button */}
-      <button onClick={() => history.push('/dashboard')} style={{ marginBottom: '20px', background: '#334155' }}>
+      <button onClick={() => navigate('/dashboard')} style={{ marginBottom: '20px', background: '#334155' }}>
         ← Back to Map
       </button>
 

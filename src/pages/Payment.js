@@ -1,6 +1,6 @@
 // src/pages/Payment.js
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useLocation, useHistory } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom'; // <- changed
 import styled from 'styled-components';
 import { Container, Button, Spinner } from 'react-bootstrap';
 import { gsap } from 'gsap';
@@ -48,7 +48,7 @@ const CardWrapper = styled.div`
 
 function PaymentInner() {
   const location = useLocation();
-  const history = useHistory();
+  const navigate = useNavigate(); // <- changed
   const cardRef = useRef(null);
   const successRef = useRef(null);
 
@@ -122,10 +122,8 @@ function PaymentInner() {
     setStatus('PROCESSING');
 
     try {
-      // amount in cents; if incoming total is already cents, skip conversion — we assume total is dollars
       const amountCents = Math.round(total * 100);
 
-      // Create PaymentIntent on server
       const resp = await api.post('/payments/create-payment-intent', {
         amount: amountCents,
         currency: 'usd',
@@ -150,15 +148,12 @@ function PaymentInner() {
       }
 
       if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        // Optional: create booking after successful payment (if we have slotId)
         try {
           if (slotId) {
             await api.post('/bookings', { slot_id: slotId, user_id: null });
-            // Backend will emit socket event so other clients update
           }
         } catch (bkErr) {
           console.warn('Booking creation after payment failed', bkErr);
-          // continue — we still show success to user
         }
 
         setStatus('SUCCESS');
@@ -181,7 +176,7 @@ function PaymentInner() {
           <p className="text-muted mb-4">
             Your reservation for slot <span className="text-white fw-bold">{slotCode}</span> is now active.
           </p>
-          <Button variant="primary" className="w-100 py-3" onClick={() => history.push('/dashboard')}>
+          <Button variant="primary" className="w-100 py-3" onClick={() => navigate('/dashboard')}> {/* <- changed */}
             RETURN TO MAP
           </Button>
         </PaymentCard>
@@ -234,7 +229,7 @@ function PaymentInner() {
           </Button>
         </form>
 
-        <Button variant="link" className="mt-3 text-muted text-decoration-none" onClick={() => history.goBack()}>
+        <Button variant="link" className="mt-3 text-muted text-decoration-none" onClick={() => navigate(-1)}> {/* <- changed */}
           Go back to details
         </Button>
       </PaymentCard>

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { useMutation } from 'react-query';
+import { useMutation } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import { FaLock, FaUser, FaParking } from 'react-icons/fa';
 import api from '../services/api';

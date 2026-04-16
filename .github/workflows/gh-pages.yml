@@ -22,6 +22,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          REACT_APP_API_BASE: ${{ secrets.REACT_APP_API_BASE }}
+          REACT_APP_SOCKET_URL: ${{ secrets.REACT_APP_SOCKET_URL }}
+          REACT_APP_ENABLE_SOCKETS: ${{ secrets.REACT_APP_ENABLE_SOCKETS }}
 
       - name: Create 404 fallback (index -> 404)
         run: |

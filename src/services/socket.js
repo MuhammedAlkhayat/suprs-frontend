@@ -1,18 +1,9 @@
-// src/services/socket.js
 import { io } from 'socket.io-client';
 
 const ENABLE_SOCKETS = (process.env.REACT_APP_ENABLE_SOCKETS || '').trim().toLowerCase() !== 'false';
 
-// derive sensible base for sockets:
-// 1) explicit REACT_APP_SOCKET_URL
-// 2) REACT_APP_API_BASE
-// 3) window.location.origin (client-side fallback)
-const socketHost = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_BASE || '').trim()
-  || (typeof window !== 'undefined' ? window.location.origin : undefined);
+console.log('[socket] ENABLE_SOCKETS:', ENABLE_SOCKETS);
 
-const SOCKET_PATH = process.env.REACT_APP_SOCKET_PATH || '/socket.io';
-
-// noop socket to avoid checks throughout app when sockets are disabled/unavailable
 const noopSocket = {
   on: () => noopSocket,
   off: () => noopSocket,
@@ -24,31 +15,42 @@ const noopSocket = {
 
 let socket = noopSocket;
 
-if (ENABLE_SOCKETS && socketHost) {
+if (ENABLE_SOCKETS) {
   try {
-    // io() will pick wss vs ws automatically based on socketHost protocol (https => wss)
-    socket = io(socketHost, {
-      path: SOCKET_PATH,
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      timeout: 20000,
-    });
+    const socketHost = (process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_BASE || '').trim()
+      || (typeof window !== 'undefined' ? window.location.origin : undefined);
 
-    // optional: small guard to avoid exceptions when socket fails early
-    socket.on('connect_error', (err) => {
-      // log but keep socket object — handlers can still call .on/.off safely
-      // you can remove this console.debug in production
-      console.warn('[socket] connect_error', err && err.message ? err.message : err);
-    });
+    if (!socketHost) {
+      console.warn('[socket] No socket host URL found, falling back to noop socket');
+      socket = noopSocket;
+    } else {
+      socket = io(socketHost, {
+        path: process.env.REACT_APP_SOCKET_PATH || '/socket.io',
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        timeout: 20000,
+      });
+
+      socket.on('connect_error', (err) => {
+        console.warn('[socket] connect_error', err && err.message ? err.message : err);
+      });
+
+      socket.on('connect', () => {
+        console.log('[socket] connected to', socketHost);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('[socket] disconnected:', reason);
+      });
+    }
   } catch (err) {
     console.warn('[socket] init failed, falling back to noop socket', err);
     socket = noopSocket;
   }
 } else {
-  // sockets are disabled by env or no host resolved
-  socket = noopSocket;
+  console.log('[socket] sockets are disabled by environment variable');
 }
 
 export default socket;

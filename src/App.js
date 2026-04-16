@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -16,7 +16,7 @@ import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 
-// Diagram Pages
+// Diagram Pages (optional)
 import UseCaseDiagram from './pages/diagrams/UseCaseDiagram';
 import ClassDiagram from './pages/diagrams/ClassDiagram';
 import ActivityDiagram from './pages/diagrams/ActivityDiagram';
@@ -27,22 +27,13 @@ import socket from './services/socket';
 function CleanupOnRouteChange() {
   const location = useLocation();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const removed = [];
 
     const overlaySelectors = [
-      '.loading-overlay',
-      '.page-overlay',
-      '.app-overlay',
-      '.suspense-fallback',
-      '.dark-overlay',
-      '.modal-backdrop',
-      '.ReactModal__Overlay',
-      '.overlay',
-      '.backdrop',
-      '.fade.show',
-      '.ant-modal-root',
-      '.MuiBackdrop-root'
+      '.loading-overlay', '.page-overlay', '.app-overlay', '.suspense-fallback',
+      '.dark-overlay', '.modal-backdrop', '.ReactModal__Overlay', '.overlay', '.backdrop',
+      '.fade.show', '.ant-modal-root', '.MuiBackdrop-root'
     ];
 
     overlaySelectors.forEach(sel => {
@@ -58,7 +49,7 @@ function CleanupOnRouteChange() {
           }
         } catch (e) {
           removed.push({ selector: sel, node: el });
-          el.remove();
+          try { el.remove(); } catch (_) {}
         }
       });
     });
@@ -78,15 +69,7 @@ function CleanupOnRouteChange() {
       } catch (e) {}
     });
 
-    const staleBodyClasses = [
-      'modal-open',
-      'overlay-open',
-      'dark-overlay-open',
-      'suspense-active',
-      'loading-active',
-      'page-overlay',
-      'ReactModal__Body--open'
-    ];
+    const staleBodyClasses = ['modal-open', 'overlay-open', 'dark-overlay-open', 'suspense-active', 'loading-active', 'page-overlay', 'ReactModal__Body--open'];
     staleBodyClasses.forEach(cls => {
       if (document.body.classList.contains(cls)) {
         document.body.classList.remove(cls);
@@ -144,65 +127,100 @@ function CleanupOnRouteChange() {
   return null;
 }
 
-function PrivateRoute() {
+function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
-  const location = useLocation();
-
-  if (!token) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return <ProtectedLayout><Outlet /></ProtectedLayout>;
+  return token ? children : <Navigate to="/login" replace />;
 }
 
-function App() {
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+
+      <Route path="/dashboard" element={
+        <PrivateRoute>
+          <ProtectedLayout><Dashboard /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/booking" element={
+        <PrivateRoute>
+          <ProtectedLayout><Booking /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/payment" element={
+        <PrivateRoute>
+          <ProtectedLayout><Payment /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/admin" element={
+        <PrivateRoute>
+          <ProtectedLayout><AdminPanel /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/reports" element={
+        <PrivateRoute>
+          <ProtectedLayout><Reports /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/profile" element={
+        <PrivateRoute>
+          <ProtectedLayout><Profile /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/diagrams/usecase" element={
+        <PrivateRoute>
+          <ProtectedLayout><UseCaseDiagram /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/diagrams/class" element={
+        <PrivateRoute>
+          <ProtectedLayout><ClassDiagram /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/diagrams/activity" element={
+        <PrivateRoute>
+          <ProtectedLayout><ActivityDiagram /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/diagrams/er" element={
+        <PrivateRoute>
+          <ProtectedLayout><ERDiagram /></ProtectedLayout>
+        </PrivateRoute>
+      } />
+
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+export default function App() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     function onBookingCreated() {
       queryClient.invalidateQueries(['slots']);
     }
-
     socket.on('booking:created', onBookingCreated);
-    return () => {
-      socket.off('booking:created', onBookingCreated);
-    };
+    return () => socket.off('booking:created', onBookingCreated);
   }, [queryClient]);
 
   return (
     <Router>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
-
         <CleanupOnRouteChange />
-
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-
-            <Route element={<PrivateRoute />}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/booking" element={<Booking />} />
-              <Route path="/payment" element={<Payment />} />
-              <Route path="/admin" element={<AdminPanel />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/diagrams/usecase" element={<UseCaseDiagram />} />
-              <Route path="/diagrams/class" element={<ClassDiagram />} />
-              <Route path="/diagrams/activity" element={<ActivityDiagram />} />
-              <Route path="/diagrams/er" element={<ERDiagram />} />
-            </Route>
-
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-
+        <main style={{ flex: 1, position: 'relative' }}>
+          <AppRoutes />
+        </main>
         <Footer />
       </div>
     </Router>
   );
 }
-
-export default App;
