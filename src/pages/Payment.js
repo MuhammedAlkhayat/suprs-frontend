@@ -1,291 +1,472 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { Spinner } from 'react-bootstrap';
-import { gsap } from 'gsap';
-import { FaCreditCard, FaCheckCircle, FaLock, FaMoneyBillWave, FaShieldAlt } from 'react-icons/fa';
-import { SiVisa, SiMastercard } from 'react-icons/si';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { gsap } from 'gsap';
+import { useToast } from '../components/ToastProvider';
 import api from '../services/api';
+import {
+  FaCreditCard, FaLock, FaCheckCircle,
+  FaShieldAlt, FaArrowLeft, FaCalendarAlt,
+} from 'react-icons/fa';
+import { SiVisa, SiMastercard } from 'react-icons/si';
 
-const Card = styled.div`
-  background: rgba(255,255,255,0.04);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 28px; padding: 2.5rem;
-  max-width: 500px; margin: 0 auto;
-  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-`;
+// ── Animated card preview ─────────────────────────────────
+function CardPreview({ number, holder, expiry, isFlipped }) {
+  const fmt = (n) => {
+    const clean = n.replace(/\D/g, '').slice(0, 16);
+    return clean.replace(/(.{4})/g, '$1 ').trim() || '•••• •••• •••• ••••';
+  };
 
-const TabBtn = styled.button`
-  flex: 1; padding: 12px !important;
-  background: ${p => p.$active ? 'linear-gradient(135deg,#00d2ff,#3a7bd5)' : 'rgba(255,255,255,0.04)'} !important;
-  border: 1px solid ${p => p.$active ? 'transparent' : 'rgba(255,255,255,0.08)'} !important;
-  border-radius: 12px !important;
-  color: ${p => p.$active ? 'white' : '#64748b'} !important;
-  font-weight: 600 !important; font-size: 14px !important;
-  transition: all 0.2s !important;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-`;
+  return (
+    <div style={{ perspective: 1000, marginBottom: 24 }}>
+      <div style={{
+        position: 'relative', width: '100%', height: 170,
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.6s cubic-bezier(0.4,0,0.2,1)',
+        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+      }}>
+        {/* Front */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+          background: 'linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%)',
+          borderRadius: 18, padding: '22px 24px',
+          border: '1px solid rgba(0,210,255,0.2)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: -30, right: -30,
+            width: 160, height: 160, borderRadius: '50%',
+            background: 'radial-gradient(circle,rgba(0,210,255,0.12),transparent 70%)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{
+              width: 40, height: 28, borderRadius: 5,
+              background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+            }} />
+            <SiVisa size={26} color="rgba(255,255,255,0.85)" />
+          </div>
+          <div>
+            <div style={{
+              fontFamily: "'Courier New', monospace",
+              fontSize: 17, fontWeight: 700, letterSpacing: 2.5,
+              color: 'rgba(255,255,255,0.9)', marginBottom: 14,
+            }}>
+              {fmt(number)}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Card Holder
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', marginTop: 2 }}>
+                  {holder || 'YOUR NAME'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Expires
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>
+                  {expiry || 'MM/YY'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-const FakeInput = styled.div`
-  background: rgba(15,23,42,0.7);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 14px 16px;
-  color: #f8fafc; font-size: 15px; margin-bottom: 12px;
-  display: flex; align-items: center; gap: 10px;
-  input {
-    background: transparent !important;
-    border: none !important;
-    outline: none;
-    color: #f8fafc !important;
-    font-size: 15px;
-    flex: 1;
-    padding: 0 !important;
-    &::placeholder { color: #475569; }
+        {/* Back */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden',
+          transform: 'rotateY(180deg)',
+          background: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)',
+          borderRadius: 18, border: '1px solid rgba(0,210,255,0.2)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.5)', overflow: 'hidden',
+        }}>
+          <div style={{ height: 40, background: '#1e293b', margin: '22px 0 18px' }} />
+          <div style={{ padding: '0 24px' }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>
+              CVV
+            </div>
+            <div style={{
+              background: 'rgba(255,255,255,0.08)', borderRadius: 5,
+              padding: '9px 12px', fontFamily: "'Courier New', monospace",
+              fontSize: 15, letterSpacing: 4, color: 'rgba(255,255,255,0.7)',
+              textAlign: 'right',
+            }}>
+              •••
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Luhn check (basic card validation) ───────────────────
+function luhn(num) {
+  let sum = 0, alt = false;
+  for (let i = num.length - 1; i >= 0; i--) {
+    let n = parseInt(num[i], 10);
+    if (alt) { n *= 2; if (n > 9) n -= 9; }
+    sum += n; alt = !alt;
   }
-`;
+  return sum % 10 === 0;
+}
 
-const PayBtn = styled.button`
-  width: 100%; padding: 16px !important;
-  background: linear-gradient(135deg,#00d2ff,#3a7bd5) !important;
-  border: none !important; border-radius: 14px !important;
-  color: white !important; font-weight: 700 !important; font-size: 16px !important;
-  letter-spacing: 1px; margin-top: 8px;
-  transition: transform 0.2s, box-shadow 0.2s !important;
-  &:hover:not(:disabled) { transform: translateY(-2px) !important; box-shadow: 0 10px 28px rgba(0,210,255,0.35) !important; }
-  &:disabled { opacity: 0.5 !important; cursor: not-allowed; }
-`;
+function detectCard(num) {
+  if (/^4/.test(num)) return 'visa';
+  if (/^5[1-5]/.test(num) || /^2[2-7]/.test(num)) return 'mastercard';
+  return 'unknown';
+}
 
+// ── Main Payment page ─────────────────────────────────────
 export default function Payment() {
   const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const cardRef = useRef(null);
-  const [tab, setTab] = useState('card'); // 'card' | 'gate'
-  const [status, setStatus] = useState('IDLE'); // IDLE | PROCESSING | SUCCESS
-  const [cardForm, setCardForm] = useState({ number: '', expiry: '', cvv: '', name: '' });
+  const { showToast } = useToast();
+  const wrapRef = useRef(null);
 
-  const total    = Number(location.state?.total) || 0;
-  const slotCode = location.state?.slotCode || 'N/A';
-  const slotId   = location.state?.slotId || null;
-  const bookingId = location.state?.bookingId || null;
+  const { total, slotCode, slotId, bookingId, duration } = location.state || {};
+
+  const [form, setForm] = useState({
+    holder: '', number: '', expiry: '', cvv: '',
+  });
+  const [isFlipped,  setIsFlipped]  = useState(false);
+  const [cardType,   setCardType]   = useState('unknown');
+  const [errors,     setErrors]     = useState({});
+  const [succeeded,  setSucceeded]  = useState(false);
 
   useEffect(() => {
-    if (!cardRef.current) return;
-    gsap.fromTo(cardRef.current,
-      { scale: 0.9, opacity: 0 },
-      { duration: 0.6, scale: 1, opacity: 1, ease: 'back.out(1.5)' }
+    if (!bookingId) { navigate('/dashboard'); return; }
+    if (!wrapRef.current) return;
+    gsap.fromTo(wrapRef.current,
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out' }
     );
-  }, []);
+  }, [bookingId, navigate]);
 
-  const gateMutation = useMutation({
-    mutationFn: () => api.post('/payments/pay-at-gate', { booking_id: bookingId }),
-    onSuccess: () => { setStatus('SUCCESS'); qc.invalidateQueries({ queryKey: ['bookings'] }); },
-  });
-
-  const handleCardPay = useCallback(async (e) => {
-    e.preventDefault();
-    if (!cardForm.number || !cardForm.expiry || !cardForm.cvv || !cardForm.name) {
-      alert('Please fill in all card details'); return;
-    }
-    setStatus('PROCESSING');
-    try {
-      // Simulate card processing (replace with real Stripe when ready)
-      await new Promise(r => setTimeout(r, 2000));
-      if (bookingId) {
-        await api.patch(`/bookings/${bookingId}/payment`, {
-          payment_status: 'PAID',
-          payment_method: 'VISA',
-          total_amount: total,
-        });
-      }
-      qc.invalidateQueries({ queryKey: ['bookings'] });
-      setStatus('SUCCESS');
-    } catch (err) {
-      alert(err?.response?.data?.error || 'Payment failed. Please try again.');
-      setStatus('IDLE');
-    }
-  }, [cardForm, bookingId, total, qc]);
-
-  const handleGatePay = () => {
-    if (bookingId) {
-      gateMutation.mutate();
-    } else {
-      setStatus('SUCCESS');
-    }
+  // Format card number with spaces
+  const handleNumber = (e) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+    const fmt = raw.replace(/(.{4})/g, '$1 ').trim();
+    setForm(f => ({ ...f, number: raw }));
+    setCardType(detectCard(raw));
+    e.target.value = fmt;
   };
 
-  // ── SUCCESS SCREEN ──────────────────────────────────────────
-  if (status === 'SUCCESS') {
+  // Format expiry MM/YY
+  const handleExpiry = (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    setForm(f => ({ ...f, expiry: v }));
+    e.target.value = v;
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.holder.trim())           errs.holder = 'Name required';
+    if (form.number.length < 16)       errs.number = 'Enter full 16-digit number';
+    else if (!luhn(form.number))       errs.number = 'Invalid card number';
+    if (!/^\d{2}\/\d{2}$/.test(form.expiry)) errs.expiry = 'Format: MM/YY';
+    else {
+      const [mm, yy] = form.expiry.split('/').map(Number);
+      const now = new Date();
+      const exp = new Date(2000 + yy, mm - 1);
+      if (exp < now) errs.expiry = 'Card expired';
+    }
+    if (form.cvv.length < 3) errs.cvv = 'Enter CVV';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const payMutation = useMutation({
+    mutationFn: () =>
+      api.post('/payments/confirm', {
+        bookingId,
+        amount: total,
+        method: cardType === 'mastercard' ? 'MASTERCARD' : 'VISA',
+        last4: form.number.slice(-4),
+      }).then(r => r.data),
+    onSuccess: () => {
+      setSucceeded(true);
+      qc.invalidateQueries({ queryKey: ['slots'] });
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      showToast('Payment Successful! 🎉', `$${total} paid for Slot ${slotCode}`, 'success', 7000);
+      gsap.to(wrapRef.current, {
+        scale: 1.02, duration: 0.15, yoyo: true, repeat: 1,
+        onComplete: () => setTimeout(() => navigate('/dashboard'), 2000),
+      });
+    },
+    onError: (err) => {
+      showToast('Payment Failed', err.response?.data?.error || 'Please try again.', 'error');
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    payMutation.mutate();
+  };
+
+  if (!bookingId) return null;
+
+  // ── Success screen ──────────────────────────────────────
+  if (succeeded) {
     return (
-      <div style={{ padding: '20px 0' }}>
-        <Card ref={cardRef}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ animation: 'pulse 1s ease-in-out' }}>
-              <FaCheckCircle size={80} color="#22c55e" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.5))' }} />
-            </div>
-            <h2 style={{ fontWeight: 800, color: '#f8fafc', marginTop: 20, marginBottom: 8 }}>
-              {tab === 'gate' ? 'Booking Confirmed!' : 'Payment Successful!'}
-            </h2>
-            <p style={{ color: '#64748b', marginBottom: 8 }}>
-              Slot <span style={{ color: '#00d2ff', fontWeight: 700 }}>{slotCode}</span> is now reserved for you.
-            </p>
-            {tab === 'gate' && (
-              <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#fde68a', fontSize: 13 }}>
-                💳 Please pay <strong>${total.toFixed(2)}</strong> at the gate upon arrival.
-              </div>
-            )}
-            {tab === 'card' && (
-              <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, color: '#86efac', fontSize: 13 }}>
-                ✅ <strong>${total.toFixed(2)}</strong> charged successfully.
-              </div>
-            )}
-            <button
-              onClick={() => navigate('/dashboard')}
-              style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', border: 'none', borderRadius: 14, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
-            >
-              RETURN TO MAP
-            </button>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{ width: '100%', marginTop: 10, background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 10, fontSize: 14 }}
-            >
-              View My Bookings
-            </button>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
+        <div ref={wrapRef} style={{
+          textAlign: 'center', maxWidth: 400,
+          background: 'rgba(13,27,46,0.92)',
+          backdropFilter: 'blur(24px)',
+          border: '1px solid rgba(16,185,129,0.2)',
+          borderRadius: 28, padding: '3rem 2rem',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'linear-gradient(135deg,#10b981,#059669)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+            boxShadow: '0 0 40px rgba(16,185,129,0.4)',
+          }}>
+            <FaCheckCircle size={36} color="white" />
           </div>
-        </Card>
+          <h2 style={{ fontWeight: 900, color: 'var(--text-primary)', marginBottom: 8 }}>
+            Payment Successful!
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 6 }}>
+            Slot <strong style={{ color: '#00d2ff' }}>{slotCode}</strong> confirmed for{' '}
+            <strong style={{ color: '#00d2ff' }}>{duration}h</strong>
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Redirecting to dashboard…
+          </p>
+        </div>
       </div>
     );
   }
 
-  // ── PAYMENT FORM ────────────────────────────────────────────
+  // ── Payment form ────────────────────────────────────────
   return (
-    <div style={{ padding: '20px 0' }}>
-      <Card ref={cardRef}>
+    <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
+      <div ref={wrapRef} style={{
+        width: '100%', maxWidth: 500,
+        background: 'rgba(13,27,46,0.92)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 28, padding: '2rem',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Top glow */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg,transparent,rgba(0,210,255,0.5),transparent)',
+        }} />
+
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ width: 64, height: 64, background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <FaCreditCard size={28} color="#001219" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
+          <button onClick={() => navigate(-1)} style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 10, padding: '8px 10px',
+            cursor: 'pointer', color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center',
+          }}>
+            <FaArrowLeft size={13} />
+          </button>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontWeight: 900, margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+              Secure Payment
+            </h2>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <FaShieldAlt size={10} color="#10b981" /> SSL Encrypted
+            </p>
           </div>
-          <h2 style={{ fontWeight: 800, color: '#f8fafc', marginBottom: 4 }}>Secure Checkout</h2>
-          <p style={{ color: '#64748b', margin: 0 }}>Slot {slotCode}</p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <SiVisa size={28} color={cardType === 'visa' ? '#fff' : 'rgba(255,255,255,0.25)'} style={{ transition: 'color 0.2s' }} />
+            <SiMastercard size={28} color={cardType === 'mastercard' ? '#fff' : 'rgba(255,255,255,0.25)'} style={{ transition: 'color 0.2s' }} />
+          </div>
         </div>
 
-        {/* Amount */}
-        <div style={{ background: 'rgba(0,210,255,0.05)', border: '1px solid rgba(0,210,255,0.1)', borderRadius: 16, padding: '16px', textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 13, color: '#64748b' }}>Amount Due</div>
-          <div style={{ fontSize: 40, fontWeight: 800, color: '#00d2ff' }}>${total.toFixed(2)}</div>
+        {/* Card preview */}
+        <CardPreview
+          number={form.number}
+          holder={form.holder}
+          expiry={form.expiry}
+          isFlipped={isFlipped}
+        />
+
+        {/* Order summary */}
+        <div style={{
+          padding: '12px 16px', borderRadius: 14, marginBottom: 20,
+          background: 'rgba(0,210,255,0.04)',
+          border: '1px solid rgba(0,210,255,0.1)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            🅿️ Slot <strong style={{ color: '#00d2ff' }}>{slotCode}</strong>
+            <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>· {duration}h</span>
+          </div>
+          <div style={{
+            fontSize: '1.4rem', fontWeight: 900,
+            background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          }}>
+            ${Number(total).toFixed(2)}
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-          <TabBtn $active={tab === 'card'} onClick={() => setTab('card')}>
-            <FaCreditCard size={14} /> Pay Online
-          </TabBtn>
-          <TabBtn $active={tab === 'gate'} onClick={() => setTab('gate')}>
-            <FaMoneyBillWave size={14} /> Pay at Gate
-          </TabBtn>
-        </div>
-
-        {/* Card Form */}
-        {tab === 'card' && (
-          <form onSubmit={handleCardPay}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <SiVisa size={32} color="#1a1f71" style={{ background: 'white', borderRadius: 4, padding: 4 }} />
-              <SiMastercard size={32} />
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          {/* Cardholder */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+              Cardholder Name
+            </label>
+            <div style={{ position: 'relative' }}>
+              <FaCreditCard size={13} style={{
+                position: 'absolute', left: 12, top: '50%',
+                transform: 'translateY(-50%)', color: '#00d2ff',
+              }} />
+              <input
+                type="text"
+                placeholder="Mohammed Al-Khayyat"
+                value={form.holder}
+                onChange={e => setForm(f => ({ ...f, holder: e.target.value }))}
+                style={{
+                  width: '100%', padding: '12px 12px 12px 34px',
+                  background: 'rgba(15,23,42,0.8)',
+                  border: `1px solid ${errors.holder ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 10, color: 'white', fontSize: 14,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
             </div>
+            {errors.holder && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{errors.holder}</div>}
+          </div>
 
-            <FakeInput>
-              <FaCreditCard size={14} color="#64748b" />
-              <input
-                placeholder="Card number (e.g. 4242 4242 4242 4242)"
-                value={cardForm.number}
-                onChange={e => setCardForm({ ...cardForm, number: e.target.value.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim() })}
-                maxLength={19}
-              />
-            </FakeInput>
+          {/* Card number */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+              Card Number
+            </label>
+            <input
+              type="text"
+              placeholder="1234 5678 9012 3456"
+              maxLength={19}
+              onChange={handleNumber}
+              style={{
+                width: '100%', padding: '12px 14px',
+                background: 'rgba(15,23,42,0.8)',
+                border: `1px solid ${errors.number ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: 10, color: 'white', fontSize: 15,
+                fontFamily: "'Courier New', monospace", letterSpacing: 2,
+                outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+            {errors.number && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{errors.number}</div>}
+          </div>
 
-            <FakeInput>
-              <FaLock size={14} color="#64748b" />
-              <input
-                placeholder="Cardholder name"
-                value={cardForm.name}
-                onChange={e => setCardForm({ ...cardForm, name: e.target.value })}
-              />
-            </FakeInput>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FakeInput>
+          {/* Expiry + CVV */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                Expiry Date
+              </label>
+              <div style={{ position: 'relative' }}>
+                <FaCalendarAlt size={12} style={{
+                  position: 'absolute', left: 11, top: '50%',
+                  transform: 'translateY(-50%)', color: '#00d2ff',
+                }} />
                 <input
+                  type="text"
                   placeholder="MM/YY"
-                  value={cardForm.expiry}
-                  onChange={e => {
-                    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
-                    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
-                    setCardForm({ ...cardForm, expiry: v });
-                  }}
                   maxLength={5}
+                  onChange={handleExpiry}
+                  style={{
+                    width: '100%', padding: '12px 12px 12px 30px',
+                    background: 'rgba(15,23,42,0.8)',
+                    border: `1px solid ${errors.expiry ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 10, color: 'white', fontSize: 14,
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
                 />
-              </FakeInput>
-              <FakeInput>
-                <FaShieldAlt size={14} color="#64748b" />
-                <input
-                  placeholder="CVV"
-                  type="password"
-                  value={cardForm.cvv}
-                  onChange={e => setCardForm({ ...cardForm, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                  maxLength={4}
-                />
-              </FakeInput>
+              </div>
+              {errors.expiry && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{errors.expiry}</div>}
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, marginBottom: 16 }}>
-              <FaLock size={10} /> SSL Encrypted · PCI Compliant
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                CVV
+              </label>
+              <input
+                type="password"
+                placeholder="•••"
+                maxLength={4}
+                onFocus={() => setIsFlipped(true)}
+                onBlur={() => setIsFlipped(false)}
+                onChange={e => setForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, '') }))}
+                style={{
+                  width: '100%', padding: '12px 14px',
+                  background: 'rgba(15,23,42,0.8)',
+                  border: `1px solid ${errors.cvv ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 10, color: 'white', fontSize: 14,
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              {errors.cvv && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{errors.cvv}</div>}
             </div>
-
-            <PayBtn type="submit" disabled={status === 'PROCESSING'}>
-              {status === 'PROCESSING'
-                ? <><Spinner animation="border" size="sm" /> Authorizing...</>
-                : `PAY $${total.toFixed(2)} NOW`
-              }
-            </PayBtn>
-          </form>
-        )}
-
-        {/* Gate Payment */}
-        {tab === 'gate' && (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 16, padding: '24px', marginBottom: 24 }}>
-              <FaMoneyBillWave size={40} color="#eab308" style={{ marginBottom: 12 }} />
-              <h4 style={{ color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>Pay at the Gate</h4>
-              <p style={{ color: '#94a3b8', fontSize: 14, margin: 0 }}>
-                Your slot will be reserved. Pay <strong style={{ color: '#eab308' }}>${total.toFixed(2)}</strong> in cash or card when you arrive at the parking gate.
-              </p>
-            </div>
-
-            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#64748b', textAlign: 'left' }}>
-              <div style={{ marginBottom: 6 }}>✅ Slot reserved immediately</div>
-              <div style={{ marginBottom: 6 }}>💳 Cash or card accepted at gate</div>
-              <div>⏰ Reservation valid for 30 minutes</div>
-            </div>
-
-            <PayBtn onClick={handleGatePay} disabled={gateMutation.isPending}>
-              {gateMutation.isPending
-                ? <><Spinner animation="border" size="sm" /> Confirming...</>
-                : 'CONFIRM — PAY AT GATE'
-              }
-            </PayBtn>
           </div>
-        )}
 
-        <button
-          onClick={() => navigate(-1)}
-          style={{ width: '100%', marginTop: 12, background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 10, fontSize: 14 }}
-        >
-          ← Go back
-        </button>
-      </Card>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={payMutation.isPending}
+            style={{
+              width: '100%', padding: '15px',
+              borderRadius: 16, border: 'none',
+              fontWeight: 800, fontSize: 15,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              background: payMutation.isPending
+                ? 'rgba(0,210,255,0.3)'
+                : 'linear-gradient(135deg,#00d2ff,#3a7bd5)',
+              color: '#001219',
+              cursor: payMutation.isPending ? 'not-allowed' : 'pointer',
+              boxShadow: '0 8px 24px rgba(0,210,255,0.3)',
+              transition: 'all 0.25s',
+            }}>
+            {payMutation.isPending ? (
+              <>
+                <div style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  border: '2px solid rgba(0,18,25,0.3)',
+                  borderTopColor: '#001219',
+                  animation: 'spin 0.8s linear infinite',
+                }} />
+                Processing…
+              </>
+            ) : (
+              <><FaLock size={13} /> Pay ${Number(total).toFixed(2)}</>
+            )}
+          </button>
+
+          {/* Trust badges */}
+          <div style={{
+            display: 'flex', justifyContent: 'center', gap: 16, marginTop: 14,
+            paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.05)',
+            flexWrap: 'wrap',
+          }}>
+            {['🔒 SSL Secured', '✅ Instant Confirm', '🚫 No Data Stored'].map(b => (
+              <span key={b} style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>{b}</span>
+            ))}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

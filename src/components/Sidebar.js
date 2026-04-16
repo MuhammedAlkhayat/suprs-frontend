@@ -1,173 +1,123 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import {
-  FaTachometerAlt, FaTicketAlt, FaCreditCard,
-  FaUserShield, FaChartLine, FaUser, FaTimes
-} from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import {
+  FaTachometerAlt, FaParking, FaCreditCard, FaUser,
+  FaChartBar, FaCog, FaSignOutAlt, FaTimes,
+} from 'react-icons/fa';
 
-const SidebarContainer = styled.nav`
-  width: ${p => (p.$collapsed ? '64px' : '220px')};
-  min-width: ${p => (p.$collapsed ? '64px' : '220px')};
-  background: rgba(8,10,15,0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: white;
-  padding: 14px 8px;
-  position: fixed;
-  left: 0;
-  top: var(--header-height, 70px);
-  height: calc(100vh - var(--header-height, 70px));
-  z-index: 1200;
-  border-right: 1px solid rgba(255,255,255,0.05);
-  transition: width 0.22s ease, transform 0.22s ease;
-  overflow-y: auto;
-  overflow-x: hidden;
+const NAV = [
+  { to:'/dashboard', icon:<FaTachometerAlt size={17}/>, label:'Dashboard' },
+  { to:'/booking',   icon:<FaParking size={17}/>,       label:'Book a Slot' },
+  { to:'/profile',   icon:<FaUser size={17}/>,          label:'My Profile' },
+];
 
-  @media (max-width: 900px) {
-    transform: ${p => (p.$mobileOpen ? 'translateX(0)' : 'translateX(-100%)')};
-    width: 240px;
-    min-width: 240px;
-    box-shadow: ${p => (p.$mobileOpen ? '4px 0 20px rgba(0,0,0,0.5)' : 'none')};
-  }
-`;
+const ADMIN_NAV = [
+  { to:'/admin',   icon:<FaCog size={17}/>,     label:'Admin Panel' },
+  { to:'/reports', icon:<FaChartBar size={17}/>, label:'Reports' },
+];
 
-const Overlay = styled.div`
-  display: none;
-  @media (max-width: 900px) {
-    display: ${p => (p.$show ? 'block' : 'none')};
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1199;
-  }
-`;
+export default function Sidebar({ collapsed, mobileOpen, onClose }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  margin-bottom: 16px;
-  font-weight: 800;
-  color: #00d2ff;
-  font-size: 1rem;
-`;
+  const handleLogout = () => { logout(); navigate('/login'); };
 
-const Menu = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const MenuItem = styled.li`
-  margin: 4px 0;
-`;
-
-const StyledLink = styled(NavLink)`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-  color: #94a3b8;
-  padding: 10px 12px;
-  border-radius: 10px;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-  &.active {
-    background: linear-gradient(90deg, rgba(0,210,255,0.12), rgba(58,123,213,0.08));
-    color: #00d2ff;
-    box-shadow: 0 4px 12px rgba(0,210,255,0.08);
-  }
-  &:hover:not(.active) {
-    background: rgba(255,255,255,0.04);
-    color: #e2e8f0;
-  }
-`;
-
-const Label = styled.span`
-  display: ${p => (p.$collapsed ? 'none' : 'inline')};
-  font-weight: 600;
-  font-size: 0.9rem;
-`;
-
-const Divider = styled.hr`
-  border: none;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  margin: 10px 0;
-`;
-
-export default function Sidebar({ collapsed = false }) {
-  const [isCollapsed, setCollapsed] = useState(collapsed);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    const handler = () => {
-      if (window.innerWidth <= 900) {
-        setMobileOpen(s => !s);
-      } else {
-        setCollapsed(s => !s);
-      }
-    };
-    window.addEventListener('toggleSidebar', handler);
-    return () => window.removeEventListener('toggleSidebar', handler);
-  }, []);
-
-  const closeMobile = () => setMobileOpen(false);
-
-  const navItems = [
-    { to: '/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard' },
-    { to: '/booking', icon: <FaTicketAlt />, label: 'Booking' },
-    { to: '/payment', icon: <FaCreditCard />, label: 'Payments' },
-    { to: '/profile', icon: <FaUser />, label: 'Profile' },
-  ];
-
-  const adminItems = [
-    { to: '/admin', icon: <FaUserShield />, label: 'Admin Panel' },
-    { to: '/reports', icon: <FaChartLine />, label: 'Reports' },
-  ];
+  const cls = [
+    'suprs-sidebar',
+    collapsed ? 'collapsed' : '',
+    mobileOpen ? 'mobile-open' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <>
-      <Overlay $show={mobileOpen} onClick={closeMobile} />
-      <SidebarContainer $collapsed={isCollapsed} $mobileOpen={mobileOpen} role="navigation" aria-label="Main sidebar">
-        <Brand>
-          <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg,#00d2ff,#3a7bd5)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#001219', fontWeight: 900, flexShrink: 0 }}>P</div>
-          <span style={{ display: isCollapsed ? 'none' : 'block' }}>SUPRS</span>
-          {mobileOpen && (
-            <button onClick={closeMobile} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}>
-              <FaTimes />
-            </button>
-          )}
-        </Brand>
+    <nav className={cls}>
+      {/* Mobile close */}
+      <button className="btn-icon" onClick={onClose}
+        style={{ display:'none', marginBottom:8, alignSelf:'flex-end' }}
+        id="sidebar-close-btn">
+        <FaTimes size={14} />
+      </button>
 
-        <Menu>
-          {navItems.map(item => (
-            <MenuItem key={item.to}>
-              <StyledLink to={item.to} onClick={closeMobile}>
-                {item.icon}
-                <Label $collapsed={isCollapsed}>{item.label}</Label>
-              </StyledLink>
-            </MenuItem>
+      {/* User mini card */}
+      {!collapsed && (
+        <div style={{ padding:'12px 10px 16px', marginBottom:8,
+          borderBottom:'1px solid var(--border)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:'50%',
+              background:'linear-gradient(135deg,#00d2ff,#3a7bd5)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize:14, fontWeight:800, color:'#001219', flexShrink:0 }}>
+              {(user?.name || user?.email || 'U')[0].toUpperCase()}
+            </div>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:'var(--text-primary)',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {user?.name || user?.email?.split('@')[0]}
+              </div>
+              <div style={{ fontSize:10, color:'var(--primary)', fontWeight:600,
+                textTransform:'uppercase', letterSpacing:'0.5px' }}>
+                {user?.role}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nav section */}
+      {!collapsed && (
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--text-muted)',
+          textTransform:'uppercase', letterSpacing:'1px', padding:'0 14px 6px' }}>
+          Navigation
+        </div>
+      )}
+
+      {NAV.map(item => (
+        <NavLink key={item.to} to={item.to}
+          className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+          title={collapsed ? item.label : undefined}>
+          <span className="nav-icon">{item.icon}</span>
+          <span className="nav-label">{item.label}</span>
+        </NavLink>
+      ))}
+
+      {/* Admin section */}
+      {user?.role === 'ADMIN' && (
+        <>
+          <div style={{ height:1, background:'var(--border)', margin:'12px 4px' }} />
+          {!collapsed && (
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--text-muted)',
+              textTransform:'uppercase', letterSpacing:'1px', padding:'0 14px 6px' }}>
+              Admin
+            </div>
+          )}
+          {ADMIN_NAV.map(item => (
+            <NavLink key={item.to} to={item.to}
+              className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+              title={collapsed ? item.label : undefined}>
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </NavLink>
           ))}
+        </>
+      )}
 
-          {user?.role === 'ADMIN' && (
-            <>
-              <Divider />
-              {adminItems.map(item => (
-                <MenuItem key={item.to}>
-                  <StyledLink to={item.to} onClick={closeMobile}>
-                    {item.icon}
-                    <Label $collapsed={isCollapsed}>{item.label}</Label>
-                  </StyledLink>
-                </MenuItem>
-              ))}
-            </>
-          )}
-        </Menu>
-      </SidebarContainer>
-    </>
+      {/* Spacer + logout */}
+      <div style={{ flex:1 }} />
+      <div style={{ height:1, background:'var(--border)', margin:'8px 4px 12px' }} />
+      <button onClick={handleLogout}
+        className="sidebar-nav-item"
+        style={{ width:'100%', background:'none', border:'none', cursor:'pointer',
+          color:'#fca5a5', borderColor:'transparent' }}
+        title={collapsed ? 'Sign Out' : undefined}>
+        <span className="nav-icon"><FaSignOutAlt size={17} /></span>
+        <span className="nav-label">Sign Out</span>
+      </button>
+
+      <style>{`
+        @media (max-width: 768px) {
+          #sidebar-close-btn { display: flex !important; }
+        }
+      `}</style>
+    </nav>
   );
 }

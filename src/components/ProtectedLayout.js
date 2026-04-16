@@ -1,54 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
-import Footer from './Footer';
-import styled from 'styled-components';
-
-const Wrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: radial-gradient(circle at top right, #1e293b, #0f172a);
-`;
-
-const Body = styled.div`
-  display: flex;
-  flex: 1;
-  padding-top: var(--header-height, 70px);
-`;
-
-const Main = styled.main`
-  flex: 1;
-  margin-left: ${p => (p.$collapsed ? '64px' : '220px')};
-  padding: 28px 24px;
-  transition: margin-left 0.22s ease;
-  min-height: calc(100vh - var(--header-height, 70px));
-  @media (max-width: 900px) {
-    margin-left: 0;
-    padding: 16px;
-  }
-`;
+import Sidebar from './Sidebar';
 
 export default function ProtectedLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.innerWidth < 1200
+  );
+  const location = useLocation();
 
+  // Close mobile sidebar on route change
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+  // Responsive collapse
   useEffect(() => {
-    const handler = () => setCollapsed(s => !s);
-    window.addEventListener('toggleSidebar', handler);
-    return () => window.removeEventListener('toggleSidebar', handler);
+    const handler = () => setSidebarCollapsed(window.innerWidth < 1200);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
   }, []);
 
   return (
-    <Wrapper>
-      <Header />
-      <Body>
-        <Sidebar collapsed={collapsed} />
-        <Main $collapsed={collapsed}>
-          <Outlet />
-        </Main>
-      </Body>
-      <Footer />
-    </Wrapper>
+    <div className="app-shell">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(6,13,26,0.7)',
+            backdropFilter:'blur(4px)', zIndex:'var(--z-overlay)' }} />
+      )}
+
+      <Header
+        onMenuClick={() => setSidebarOpen(o => !o)}
+        onCollapseClick={() => setSidebarCollapsed(c => !c)}
+        sidebarCollapsed={sidebarCollapsed}
+      />
+
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      <main className={`suprs-main${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+        <Outlet />
+      </main>
+    </div>
   );
 }

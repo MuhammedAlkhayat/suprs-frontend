@@ -1,226 +1,142 @@
-// src/App.js
-import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import Header from './components/Header';
-import Footer from './components/Footer';
+import { getSocket } from './services/socket';
 import ProtectedLayout from './components/ProtectedLayout';
-
-// Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Booking from './pages/Booking';
-import Payment from './pages/Payment';
-import AdminPanel from './pages/AdminPanel';
-import Reports from './pages/Reports';
-import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
+import ToastProvider, { useToast } from './components/ToastProvider';
 
-// Diagram Pages (optional)
-import UseCaseDiagram from './pages/diagrams/UseCaseDiagram';
-import ClassDiagram from './pages/diagrams/ClassDiagram';
-import ActivityDiagram from './pages/diagrams/ActivityDiagram';
-import ERDiagram from './pages/diagrams/ERDiagram';
+// Lazy pages
+const Login      = lazy(() => import('./pages/Login'));
+const Register   = lazy(() => import('./pages/Register'));
+const Dashboard  = lazy(() => import('./pages/Dashboard'));
+const Booking    = lazy(() => import('./pages/Booking'));
+const Payment    = lazy(() => import('./pages/Payment'));
+const Profile    = lazy(() => import('./pages/Profile'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const Reports    = lazy(() => import('./pages/Reports'));
 
-import socket from './services/socket';
+function PageLoader() {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh', flexDirection:'column', gap:16 }}>
+      <div className="suprs-spinner" />
+      <p style={{ color:'var(--text-muted)', fontSize:13, margin:0 }}>Loading…</p>
+    </div>
+  );
+}
 
-function CleanupOnRouteChange() {
+function PrivateRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
   const location = useLocation();
+  if (loading) return <PageLoader />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
+  return children;
+}
 
-  React.useEffect(() => {
-    const removed = [];
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return children;
+}
 
-    const overlaySelectors = [
-      '.loading-overlay', '.page-overlay', '.app-overlay', '.suspense-fallback',
-      '.dark-overlay', '.modal-backdrop', '.ReactModal__Overlay', '.overlay', '.backdrop',
-      '.fade.show', '.ant-modal-root', '.MuiBackdrop-root'
-    ];
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pathname]);
+  return null;
+}
 
-    overlaySelectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => {
-        try {
-          const rect = el.getBoundingClientRect();
-          const style = window.getComputedStyle(el);
-          const covers = rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2;
-          const opaque = /rgba|rgb/.test(style.backgroundColor || '') && (style.backgroundColor.includes('0.5') || style.opacity > 0.15);
-          if (covers || opaque || parseInt(style.zIndex || '0') >= 900) {
-            removed.push({ selector: sel, node: el });
-            el.remove();
-          }
-        } catch (e) {
-          removed.push({ selector: sel, node: el });
-          try { el.remove(); } catch (_) {}
-        }
-      });
-    });
+// Real-time socket manager — lives inside AuthProvider so it has user context
+function SocketManager() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const { showToast } = useToast();
 
-    document.querySelectorAll('body > *').forEach(el => {
-      try {
-        const style = window.getComputedStyle(el);
-        if (style.position === 'fixed' || style.position === 'absolute') {
-          const rect = el.getBoundingClientRect();
-          const isFull = rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2;
-          const z = parseInt(style.zIndex || '0', 10) || 0;
-          if (isFull && z > 500) {
-            removed.push({ selector: 'body > * (fixed-full)', node: el });
-            el.remove();
-          }
-        }
-      } catch (e) {}
-    });
+  useEffect(() => {
+    if (!user) return;
+    const socket = getSocket();
 
-    const staleBodyClasses = ['modal-open', 'overlay-open', 'dark-overlay-open', 'suspense-active', 'loading-active', 'page-overlay', 'ReactModal__Body--open'];
-    staleBodyClasses.forEach(cls => {
-      if (document.body.classList.contains(cls)) {
-        document.body.classList.remove(cls);
-        removed.push({ selector: `body.class:${cls}`, node: null });
-      }
-    });
+    socket.emit('join_user', user.id);
 
-    if (document.body.style.overflow === 'hidden') {
-      document.body.style.overflow = '';
-      removed.push({ selector: 'body.style.overflow', node: null });
-    }
-    document.body.style.pointerEvents = '';
+    // Live slot updates → patch cache instantly (no refetch needed)
+    const onSlotUpdated = (updated) => {
+      qc.setQueryData(['slots'], (old) =>
+        old ? old.map(s => s.id === updated.id ? { ...s, ...updated } : s) : old
+      );
+    };
 
-    document.querySelectorAll('main, .main-content, .app-content, #root > *').forEach(el => {
-      try {
-        el.style.opacity = '1';
-        el.style.visibility = 'visible';
-        el.style.filter = 'none';
-        el.style.pointerEvents = 'auto';
-      } catch (e) {}
-    });
+    const onSlotDeleted = ({ id }) => {
+      qc.setQueryData(['slots'], (old) => old?.filter(s => s.id !== id) ?? []);
+    };
 
-    if (removed.length > 0) {
-      console.info('[RouteCleanup] removed overlay artifacts after route:', location.pathname);
-      removed.forEach((r, i) => console.info(`[RouteCleanup][${i}]`, r.selector, r.node));
-    }
+    // Live notifications → prepend to cache + show toast
+    const onNotification = (notif) => {
+      qc.setQueryData(['notifications'], (old) => [notif, ...(old ?? [])]);
+      showToast(notif.title, notif.message, 'info');
+    };
 
-    const id = setTimeout(() => {
-      document.querySelectorAll('body > *').forEach(el => {
-        try {
-          const style = window.getComputedStyle(el);
-          const rect = el.getBoundingClientRect();
-          if ((style.position === 'fixed' || style.position === 'absolute') &&
-             rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2 &&
-             parseInt(style.zIndex || '0', 10) > 500) {
-            console.info('[RouteCleanup] delayed remove', el);
-            el.remove();
-          }
-        } catch (e) {}
-      });
+    // Live booking events
+    const onBookingCreated = () => {
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['slots'] });
+    };
 
-      document.querySelectorAll('main, .main-content, .app-content, #root > *').forEach(el => {
-        try {
-          el.style.opacity = '1';
-          el.style.visibility = 'visible';
-          el.style.filter = 'none';
-          el.style.pointerEvents = 'auto';
-        } catch (e) {}
-      });
-    }, 250);
+    socket.on('slot_updated',    onSlotUpdated);
+    socket.on('slot_deleted',    onSlotDeleted);
+    socket.on('notification',    onNotification);
+    socket.on('booking_created', onBookingCreated);
 
-    return () => clearTimeout(id);
-  }, [location]);
+    return () => {
+      socket.off('slot_updated',    onSlotUpdated);
+      socket.off('slot_deleted',    onSlotDeleted);
+      socket.off('notification',    onNotification);
+      socket.off('booking_created', onBookingCreated);
+    };
+  }, [user, qc, showToast]);
 
   return null;
 }
 
-function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" replace />;
-}
-
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-
-      <Route path="/dashboard" element={
-        <PrivateRoute>
-          <ProtectedLayout><Dashboard /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/booking" element={
-        <PrivateRoute>
-          <ProtectedLayout><Booking /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/payment" element={
-        <PrivateRoute>
-          <ProtectedLayout><Payment /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/admin" element={
-        <PrivateRoute>
-          <ProtectedLayout><AdminPanel /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/reports" element={
-        <PrivateRoute>
-          <ProtectedLayout><Reports /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/profile" element={
-        <PrivateRoute>
-          <ProtectedLayout><Profile /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/diagrams/usecase" element={
-        <PrivateRoute>
-          <ProtectedLayout><UseCaseDiagram /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/diagrams/class" element={
-        <PrivateRoute>
-          <ProtectedLayout><ClassDiagram /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/diagrams/activity" element={
-        <PrivateRoute>
-          <ProtectedLayout><ActivityDiagram /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/diagrams/er" element={
-        <PrivateRoute>
-          <ProtectedLayout><ERDiagram /></ProtectedLayout>
-        </PrivateRoute>
-      } />
-
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-}
-
 export default function App() {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    function onBookingCreated() {
-      queryClient.invalidateQueries(['slots']);
-    }
-    socket.on('booking:created', onBookingCreated);
-    return () => socket.off('booking:created', onBookingCreated);
-  }, [queryClient]);
-
   return (
-    <Router>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Header />
-        <CleanupOnRouteChange />
-        <main style={{ flex: 1, position: 'relative' }}>
-          <AppRoutes />
-        </main>
-        <Footer />
-      </div>
-    </Router>
+    <ToastProvider>
+      <ScrollToTop />
+      <SocketManager />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public */}
+          <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+          {/* Protected shell */}
+          <Route path="/" element={
+            <PrivateRoute>
+              <ProtectedLayout />
+            </PrivateRoute>
+          }>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard"   element={<Dashboard />} />
+            <Route path="booking"     element={<Booking />} />
+            <Route path="payment/:id" element={<Payment />} />
+            <Route path="profile"     element={<Profile />} />
+            <Route path="admin"       element={
+              <PrivateRoute adminOnly>
+                <AdminPanel />
+              </PrivateRoute>
+            } />
+            <Route path="reports"     element={
+              <PrivateRoute adminOnly>
+                <Reports />
+              </PrivateRoute>
+            } />
+          </Route>
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </ToastProvider>
   );
 }
