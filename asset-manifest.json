@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.css": "/suprs-frontend/static/css/main.a191f167.css",
-    "main.js": "/suprs-frontend/static/js/main.3e842f07.js",
+    "main.css": "/suprs-frontend/static/css/main.20c9b478.css",
+    "main.js": "/suprs-frontend/static/js/main.fea54887.js",
     "static/js/66.71f7e46b.chunk.js": "/suprs-frontend/static/js/66.71f7e46b.chunk.js",
     "static/js/390.ace39ff4.chunk.js": "/suprs-frontend/static/js/390.ace39ff4.chunk.js",
-    "static/js/479.ecb03733.chunk.js": "/suprs-frontend/static/js/479.ecb03733.chunk.js",
+    "static/js/479.4dd6ab77.chunk.js": "/suprs-frontend/static/js/479.4dd6ab77.chunk.js",
     "static/js/508.edc2ca63.chunk.js": "/suprs-frontend/static/js/508.edc2ca63.chunk.js",
     "static/js/781.5f78439b.chunk.js": "/suprs-frontend/static/js/781.5f78439b.chunk.js",
     "static/js/122.2fb2c6de.chunk.js": "/suprs-frontend/static/js/122.2fb2c6de.chunk.js",
@@ -12,11 +12,11 @@
     "static/js/756.65248599.chunk.js": "/suprs-frontend/static/js/756.65248599.chunk.js",
     "static/js/784.32a63ef4.chunk.js": "/suprs-frontend/static/js/784.32a63ef4.chunk.js",
     "index.html": "/suprs-frontend/index.html",
-    "main.a191f167.css.map": "/suprs-frontend/static/css/main.a191f167.css.map",
-    "main.3e842f07.js.map": "/suprs-frontend/static/js/main.3e842f07.js.map",
+    "main.20c9b478.css.map": "/suprs-frontend/static/css/main.20c9b478.css.map",
+    "main.fea54887.js.map": "/suprs-frontend/static/js/main.fea54887.js.map",
     "66.71f7e46b.chunk.js.map": "/suprs-frontend/static/js/66.71f7e46b.chunk.js.map",
     "390.ace39ff4.chunk.js.map": "/suprs-frontend/static/js/390.ace39ff4.chunk.js.map",
-    "479.ecb03733.chunk.js.map": "/suprs-frontend/static/js/479.ecb03733.chunk.js.map",
+    "479.4dd6ab77.chunk.js.map": "/suprs-frontend/static/js/479.4dd6ab77.chunk.js.map",
     "508.edc2ca63.chunk.js.map": "/suprs-frontend/static/js/508.edc2ca63.chunk.js.map",
     "781.5f78439b.chunk.js.map": "/suprs-frontend/static/js/781.5f78439b.chunk.js.map",
     "122.2fb2c6de.chunk.js.map": "/suprs-frontend/static/js/122.2fb2c6de.chunk.js.map",
@@ -25,7 +25,7 @@
     "784.32a63ef4.chunk.js.map": "/suprs-frontend/static/js/784.32a63ef4.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.a191f167.css",
-    "static/js/main.3e842f07.js"
+    "static/css/main.20c9b478.css",
+    "static/js/main.fea54887.js"
   ]
 }
