@@ -1,0 +1,269 @@
+/* src/styles/overrides.css
+   Dashboard & layout overrides only.
+   IMPORTANT: Do NOT include :root here — variables must remain in suprs-theme.css.
+   Import this file last so these rules reliably override earlier CSS.
+*/
+
+/* === Dashboard container / shell === */
+.page-dashboard {
+  background: linear-gradient(180deg, rgba(2,6,23,0.35), rgba(2,6,23,0.25)), var(--bg-base);
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.page-dashboard .dashboard-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 420px);
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+}
+
+/* main column layout */
+.page-dashboard .dashboard-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* right column sticky sidebar */
+.page-dashboard .dashboard-side {
+  position: sticky;
+  top: calc(var(--header-h, 68px) + 20px);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  z-index: 2;
+}
+
+/* Cards sizing and behavior */
+.page-dashboard .glass-card,
+.page-dashboard .dashboard-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Stat cards */
+.page-dashboard .stat-card,
+.stat-card {
+  padding: 1.25rem;
+  min-height: 96px;
+  box-sizing: border-box;
+}
+.page-dashboard .stat-value,
+.stat-value {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+/* Parking grid & slots */
+.parking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.slot-box {
+  height: 180px;
+  padding: 12px;
+  border-radius: var(--radius-lg, 16px);
+  transition: transform var(--t-base) var(--ease-spring), box-shadow var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+  box-sizing: border-box;
+}
+
+/* Slot states */
+.slot-box.available {
+  background: linear-gradient(145deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06));
+  border: 2px solid rgba(16,185,129,0.35);
+  cursor: pointer;
+}
+.slot-box.available:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(16,185,129,0.2);
+  border-color: var(--green);
+}
+
+.slot-box.occupied {
+  background: linear-gradient(145deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05));
+  border: 2px solid rgba(239,68,68,0.28);
+  cursor: not-allowed;
+  opacity: 0.88;
+}
+
+.slot-box.reserved {
+  background: linear-gradient(145deg, rgba(245,158,11,0.12), rgba(245,158,11,0.06));
+  border: 2px solid rgba(245,158,11,0.34);
+  cursor: not-allowed;
+}
+
+/* Slot content */
+.slot-number {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+.slot-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Make cards more roomy on desktop */
+@media (min-width: 1200px) {
+  .slot-box { height: 200px; }
+  .parking-grid { gap: 20px; }
+  .page-dashboard .dashboard-shell { gap: 28px; }
+}
+
+/* Responsive: medium */
+@media (max-width: 1280px) {
+  .page-dashboard .dashboard-shell {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .parking-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  .slot-box { height: 160px; }
+}
+
+/* Responsive: tablet */
+@media (max-width: 992px) {
+  .page-dashboard .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+  .page-dashboard .dashboard-side { position: static; top: auto; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .parking-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .slot-box { height: 150px; }
+}
+
+/* Responsive: mobile */
+@media (max-width: 768px) {
+  .suprs-main { margin-left: 0 !important; padding: 20px 16px; }
+  .page-dashboard { padding: 18px; }
+  .glass-card { padding: 1.2rem; border-radius: var(--radius-lg); }
+  .parking-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .slot-box { height: 145px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .desktop-only { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+}
+
+/* Extra-small */
+@media (max-width: 480px) {
+  .suprs-main { padding: 16px 12px; }
+  .glass-card { padding: 1rem; border-radius: var(--radius); }
+  .parking-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .slot-box { height: 110px; }
+  .stat-card { padding: 1rem; }
+  .stat-value { font-size: 1.6rem; }
+}
+
+/* ensure header stays above sticky sidebars */
+.suprs-header {
+  z-index: calc(var(--z-header, 200) + 50) !important;
+}
+
+/* minimal keyframe kept to avoid duplicate keyframe issues if other files define the full animation */
+@keyframes spin { to { transform: rotate(360deg); } }
+/* ===== Diagnostic / Layout override — place at END of overrides.css ===== */
+
+/* Ensure the root dashboard container uses full available width */
+.dashboard-shell,
+.page-dashboard .dashboard-shell,
+.dashboard-wrapper,
+.main-dashboard,
+.dashboard-container {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  display: grid !important;
+  grid-template-columns: 1fr 360px !important; /* main / right sidebar */
+  gap: 24px !important;
+  align-items: start !important;
+  padding: 0 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Defensive: usual alternate class names */
+.page-dashboard .dashboard-shell,
+.main-dashboard .dashboard-main,
+.dashboard-main,
+.dashboard-content {
+  min-width: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Right column */
+.page-dashboard .dashboard-side,
+.dashboard-side,
+.dashboard-right,
+.sidebar-right {
+  width: 360px !important;
+  min-width: 360px !important;
+  position: sticky !important;
+  top: calc(var(--header-h, 72px) + 20px) !important;
+  align-self: start !important;
+}
+
+/* Make stat/parking cards bigger and avoid collapse */
+.page-dashboard .stat-card,
+.stat-card,
+.glass-card,
+.parking-grid,
+.slot-box {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Parking grid: larger card size on desktop */
+.parking-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+  gap: 18px !important;
+}
+.slot-box { height: 180px !important; padding: 12px !important; }
+
+/* Fix for odd gap where center was empty due to flex/shrink issues */
+.page-dashboard .dashboard-shell > * { min-width: 0 !important; }
+
+/* Responsive: collapse into single column below 1280px */
+@media (max-width: 1280px) {
+  .dashboard-shell,
+  .page-dashboard .dashboard-shell,
+  .dashboard-wrapper,
+  .main-dashboard {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .page-dashboard .dashboard-side,
+  .dashboard-side,
+  .dashboard-right,
+  .sidebar-right {
+    position: static !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    top: auto !important;
+  }
+}
+
+/* Mobile tightening (keeps cards usable) */
+@media (max-width: 768px) {
+  .parking-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important; gap: 10px !important; }
+  .slot-box { height: 130px !important; }
+  .glass-card { padding: 1.2rem !important; border-radius: 12px !important; }
+}

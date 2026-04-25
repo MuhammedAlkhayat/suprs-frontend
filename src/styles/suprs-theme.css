@@ -1,0 +1,554 @@
+/* src/styles/suprs-theme.css
+   SUPRS theme + layout helpers (consolidated)
+   Import this after your global reset CSS to override where needed.
+*/
+
+/* === Consolidated theme variables (canonical) ===
+   Keep a single :root in suprs-theme.css so other files don't conflict.
+*/
+:root {
+  /* Brand */
+  --primary:        #00d2ff;
+  --primary-600:    #00a8e6;
+  --primary-dark:   #0099cc;
+  --secondary:      #3a7bd5;
+  --accent:         #7c3aed;
+
+  /* Backgrounds */
+  --bg-base:        #060d1a;
+  --bg-surface:     #0d1b2e;
+  --bg-elevated:    #112240;
+  --bg-card:        rgba(255, 255, 255, 0.035);
+  --bg-card-hover:  rgba(255, 255, 255, 0.06);
+  --bg-input:       rgba(6, 13, 26, 0.85);
+  --bg-overlay:     rgba(6, 13, 26, 0.92);
+
+  /* Input & Card specific (NEW - theme-aware) */
+  --card-bg:        linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  --input-bg:       var(--bg-input);
+  --input-border:   var(--border);
+  --input-color:    var(--text-primary);
+  --input-icon-color: rgba(240,246,255,0.6);
+  --text-placeholder: rgba(240,246,255,0.32);
+
+  /* Text */
+  --text-primary:   #f0f6ff;
+  --text-secondary: #8899aa;
+  --text-muted:     #4a5568;
+  --text-accent:    #00d2ff;
+
+  /* Borders */
+  --border:         rgba(255, 255, 255, 0.07);
+  --border-strong:  rgba(255, 255, 255, 0.12);
+  --border-hover:   rgba(0, 210, 255, 0.35);
+  --border-focus:   rgba(0, 210, 255, 0.6);
+
+  /* Status */
+  --green:          #10b981;
+  --green-glow:     rgba(16,185,129,0.2);
+  --red:            #ef4444;
+  --red-glow:       rgba(239,68,68,0.2);
+  --yellow:         #f59e0b;
+  --yellow-glow:    rgba(245,158,11,0.2);
+  --purple:         #8b5cf6;
+  --purple-glow:    rgba(139,92,246,0.2);
+
+  /* Layout */
+  --header-h:       68px;
+  --sidebar-w:      240px;
+  --sidebar-w-sm:   68px;
+  --radius-sm:      8px;
+  --radius:         14px;
+  --radius-lg:      18px;
+  --radius-xl:      28px;
+  --radius-full:    9999px;
+
+  /* Shadows */
+  --shadow-sm:      0 2px 8px rgba(0,0,0,0.3);
+  --shadow:         0 8px 32px rgba(0,0,0,0.45);
+  --shadow-lg:      0 20px 60px rgba(0,0,0,0.6);
+  --shadow-glow:    0 0 40px rgba(0,210,255,0.12);
+  --shadow-card:    0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+
+  /* Transitions */
+  --ease:           cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast:         0.15s;
+  --t-base:         0.25s;
+  --t-slow:         0.4s;
+
+  /* Z-index */
+  --z-sidebar:      100;
+  --z-header:       200;
+  --z-overlay:      300;
+  --z-modal:        400;
+  --z-toast:        500;
+}
+
+/* === Light theme (flip with document.documentElement.setAttribute('data-theme','light')) === */
+[data-theme="light"] {
+  --primary:       #0077cc;
+  --primary-600:   #0061a8;
+  --primary-dark:  #005f99;
+  --secondary:     #005fa3;
+  --accent:        #6b46c1;
+
+  --bg-base:       #f6f9fc;
+  --bg-surface:    #ffffff;
+  --bg-elevated:   #f0f4f8;
+  --bg-card:       rgba(2,6,23,0.03);
+  --bg-input:      rgba(2,6,23,0.04);
+
+  --text-primary:  #072032;
+  --text-secondary:#475569;
+  --text-muted:    #6b7280;
+
+  --border:        rgba(2,6,23,0.06);
+  --border-strong: rgba(2,6,23,0.12);
+
+  --shadow-card:   0 8px 30px rgba(9,30,66,0.06);
+  --shadow-glow:   0 0 24px rgba(0,118,204,0.06);
+
+  /* Light-theme input/card overrides (NEW) */
+  --card-bg:       linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+  --input-bg:      var(--bg-input);
+  --input-border:  var(--border);
+  --input-color:   var(--text-primary);
+  --input-icon-color: rgba(7,32,50,0.55);
+  --text-placeholder: rgba(7,32,50,0.32);
+}
+
+/* === Layout helpers & container === */
+.container-centered {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Header: ensure nav sits inside a centered container */
+.suprs-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--header-h);
+  padding-left: 12px;
+  padding-right: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border-bottom: 1px solid var(--border);
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: var(--z-header);
+  backdrop-filter: blur(12px);
+}
+
+/* Inner content wrapper to center header content */
+.suprs-header .header-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* Place nav centrally in the header */
+.header-nav-container {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  padding: 0 8px;
+}
+
+/* Nav items inside centered container */
+.header-nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 980px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* style for each nav link (used by Header.js) */
+.header-nav .nav-link {
+  padding: 8px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: all var(--t-fast) var(--ease);
+  border: 1px solid transparent;
+  background: transparent;
+}
+.header-nav .nav-link:hover {
+  color: var(--text-primary);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-color: var(--border);
+  box-shadow: var(--shadow-glow);
+}
+.header-nav .nav-link.active {
+  color: var(--primary);
+  background: linear-gradient(180deg, rgba(0,210,255,0.06), rgba(58,123,213,0.03));
+  border: 1px solid rgba(0,210,255,0.12);
+  box-shadow: 0 6px 22px rgba(0,210,255,0.04);
+}
+
+/* Header brand sizing */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+.header-brand .logo-img {
+  height: 36px;
+  width: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 6px 20px rgba(0,210,255,0.06);
+}
+
+/* Right-side header controls */
+.header-controls { display: flex; align-items: center; gap: 8px; }
+
+/* === Auth / Login refinements (enhanced auth styles) === */
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  /* use theme-aware card background */
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 28px;
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+}
+
+/* small logo container at top of auth card (if using logo img) */
+.auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+/* small helper text */
+.auth-card h2 { margin: 8px 0 4px; font-size: 1.4rem; }
+.auth-card p.muted { color: var(--text-secondary); margin-bottom: 12px; }
+
+/* button styles that complement App.css */
+.btn-primary {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  color: #001219;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+}
+
+/* input & form adjustments for high contrast (UPDATED) */
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-color);
+  font-size: 15px;
+  caret-color: var(--primary);
+  -webkit-text-fill-color: var(--input-color); /* Safari/WebKit autofill */
+  transition: box-shadow 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+.form-input:focus {
+  box-shadow: 0 0 0 4px rgba(0,210,255,0.06);
+  border-color: var(--primary-600);
+  outline: none;
+}
+
+/* Placeholder color */
+.form-input::placeholder {
+  color: var(--text-placeholder);
+  opacity: 1;
+}
+
+/* Input wrapper helpers (icons + action) */
+.input-wrapper { position: relative; display: flex; align-items: center; gap: 8px; }
+.input-icon { color: var(--input-icon-color); }
+.input-action {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--input-icon-color);
+  cursor: pointer;
+}
+
+/* small helpers and error */
+.error-text { color: #ff6b6b; font-weight: 700; margin-top: 8px; }
+.muted { color: var(--text-secondary); }
+
+/* Autofill / webkit bug fixes */
+input:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--input-color) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
+  box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
+}
+
+/* Ensure masked password picks up input color */
+input[type="password"] {
+  color: var(--input-color) !important;
+  -webkit-text-security: disc;
+}
+
+/* === Utilities: global + header-scoped helpers (single consolidated block) === */
+.desktop-only { display: inline-flex; }
+.mobile-only  { display: none; }
+
+.header-desktop-only { display: inline-flex; }
+.header-mobile-only  { display: none; }
+
+/* mobile nav drawer (used when mobileOpen true) */
+.mobile-nav-drawer {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-base);
+  z-index: 999;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* theme badges/contrast helpers */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+
+/* small accessibility and focus helpers */
+.btn-focus { transition: box-shadow 0.12s; }
+.btn-focus:focus { box-shadow: 0 0 0 3px rgba(0,210,255,0.08); outline: none; }
+
+/* === Minor overrides to reduce overly dark areas if present in older CSS === */
+.suprs-header,
+.auth-card,
+.glass-card { background-blend-mode: normal; }
+
+/* === Logo and image rules (single consolidated block) ===
+   Ensures transparent PNGs and removes boxed backgrounds; merged duplicates.
+*/
+.auth-logo,
+.logo-img,
+.header-brand .logo-img {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  width: auto !important;
+  height: 56px !important;
+  max-width: 260px !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 10px 24px rgba(2, 118, 204, 0.06));
+}
+
+/* remove any wrapper backgrounds around logo */
+.auth-card .auth-header,
+.auth-logo-wrap,
+.logo-wrapper {
+  background: transparent !important;
+  background-image: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* If some global rule targets the image alt/title, be safe */
+img[alt="SUPRS"],
+img[alt^="SUPRS"],
+img[alt$="LOGO"] {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+/* === Page-specific wrappers & unique page styles === */
+
+/* Generic page wrapper */
+.page {
+  min-height: 100vh;
+  display: block;
+  padding: 36px 18px;
+  box-sizing: border-box;
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* LOGIN PAGE */
+.page-login {
+  background: radial-gradient(1200px 600px at 10% 20%, rgba(0,210,255,0.04), transparent 8%),
+              radial-gradient(800px 500px at 90% 80%, rgba(58,123,213,0.03), transparent 8%),
+              var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+}
+.page-login .auth-card {
+  max-width: 520px;
+  border-radius: 16px;
+  padding: 30px;
+  /* use theme card background when possible */
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
+}
+
+/* DASHBOARD PAGE */
+.page-dashboard {
+  background: linear-gradient(180deg, rgba(2,6,23,0.35), rgba(2,6,23,0.25)), var(--bg-base);
+  padding: 28px;
+}
+.page-dashboard .dashboard-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 420px);
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+}
+.page-dashboard .dashboard-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+}
+
+/* BOOKING PAGE (slot-focused) */
+.page-booking {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  padding: 24px;
+}
+.page-booking .slot-grid {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  padding: 12px;
+}
+
+/* PAYMENT PAGE */
+.page-payment {
+  background: linear-gradient(180deg, rgba(246,249,252,1), rgba(234,244,255,1));
+  color: var(--text-primary);
+  padding: 28px;
+}
+.page-payment .payment-card {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--bg-surface);
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+}
+
+/* REPORTS PAGE */
+.page-reports {
+  background: linear-gradient(180deg, #f6f9fc 0%, #eef6ff 100%);
+  color: #042f40;
+  padding: 32px;
+}
+.page-reports .report-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid rgba(2,6,23,0.06);
+  box-shadow: 0 8px 24px rgba(9,30,66,0.04);
+}
+
+/* PROFILE PAGE */
+.page-profile {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)), var(--bg-base);
+  padding: 28px;
+}
+.page-profile .profile-card {
+  max-width: 920px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 18px;
+}
+
+/* header & logo sizing helpers */
+.logo-img,
+.header-brand .logo-img,
+.auth-logo {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  width: auto !important;
+  height: 36px !important;
+  max-width: 220px !important;
+  object-fit: contain !important;
+  filter: none !important;
+}
+
+/* Slightly larger logo for auth screens */
+.page-login .logo-img,
+.page-login .auth-logo {
+  height: 64px !important;
+  max-width: 260px !important;
+}
+
+/* Make sure the header gradient box (if still desired) does not mask the logo's transparency. */
+.logo-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* === Responsive consolidated section (single place to edit) === */
+@media (max-width: 900px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+
+  .header-desktop-only { display: none !important; }
+  .header-mobile-only  { display: inline-flex !important; }
+
+  .header-nav { display: none; } /* hide center nav on narrow screens */
+
+  /* layout fallbacks */
+  .page-dashboard .dashboard-shell { grid-template-columns: 1fr; }
+  .page-profile .profile-card { grid-template-columns: 1fr; }
+  .auth-logo, .logo-img { height: 48px !important; max-width: 180px !important; }
+  .suprs-header { padding-left: 12px; padding-right: 12px; }
+}
+
+/* smaller screens: auth-logo tweak */
+@media (max-width: 600px) {
+  .auth-logo { height: 48px !important; max-width: 140px !important; }
+}
+
+/* === End of suprs-theme.css === */
