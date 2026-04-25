@@ -1,214 +1,253 @@
 // src/App.js
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect, useLocation } from 'react-router-dom';
-import Header from './components/Header';
-import Footer from './components/Footer';
+import React, { useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
+import socket from './services/socket';
 import ProtectedLayout from './components/ProtectedLayout';
-
-// Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Booking from './pages/Booking';
-import Payment from './pages/Payment';
-import AdminPanel from './pages/AdminPanel';
-import Reports from './pages/Reports';
-import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
+import ToastProvider, { useToast } from './components/ToastProvider';
 
-// Diagram Pages
-import UseCaseDiagram from './pages/diagrams/UseCaseDiagram';
-import ClassDiagram from './pages/diagrams/ClassDiagram';
-import ActivityDiagram from './pages/diagrams/ActivityDiagram';
-import ERDiagram from './pages/diagrams/ERDiagram';
+// Lazy pages
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Booking = lazy(() => import('./pages/Booking'));
+const Payment = lazy(() => import('./pages/Payment'));
+const Profile = lazy(() => import('./pages/Profile'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const Reports = lazy(() => import('./pages/Reports'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 
-function CleanupOnRouteChange() {
+function PageLoader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+    >
+      <div className="suprs-spinner" />
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+        Loading…
+      </p>
+    </div>
+  );
+}
+
+function PrivateRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
   const location = useLocation();
 
+  if (loading) return <PageLoader />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
+
+  return children;
+}
+
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return <PageLoader />;
+  if (user) return <Navigate to="/dashboard" replace />;
+
+  return children;
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
   useEffect(() => {
-    const removed = [];
-
-    // 1) Remove known overlay selectors (adjust this list if you have custom names)
-    const overlaySelectors = [
-      '.loading-overlay',
-      '.page-overlay',
-      '.app-overlay',
-      '.suspense-fallback',
-      '.dark-overlay',
-      '.modal-backdrop',
-      '.ReactModal__Overlay',
-      '.overlay',
-      '.backdrop',
-      '.fade.show',
-      '.ant-modal-root', // if using antd
-      '.MuiBackdrop-root' // if using MUI
-    ];
-
-    overlaySelectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(el => {
-        // Heuristic: remove if it covers viewport or is semi-opaque
-        try {
-          const rect = el.getBoundingClientRect();
-          const style = window.getComputedStyle(el);
-          const covers = rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2;
-          const opaque = /rgba|rgb/.test(style.backgroundColor || '') && (style.backgroundColor.includes('0.5') || style.opacity > 0.15);
-          if (covers || opaque || parseInt(style.zIndex || '0') >= 900) {
-            removed.push({ selector: sel, node: el });
-            el.remove();
-          }
-        } catch (e) {
-          removed.push({ selector: sel, node: el });
-          el.remove();
-        }
-      });
-    });
-
-    // 2) Defensive removal: any fixed element that covers viewport with very high z-index
-    document.querySelectorAll('body > *').forEach(el => {
-      try {
-        const style = window.getComputedStyle(el);
-        if (style.position === 'fixed' || style.position === 'absolute') {
-          const rect = el.getBoundingClientRect();
-          const isFull = rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2;
-          const z = parseInt(style.zIndex || '0', 10) || 0;
-          if (isFull && z > 500) {
-            removed.push({ selector: 'body > * (fixed-full)', node: el });
-            el.remove();
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    });
-
-    // 3) Remove common body classes left by modal libraries or loaders
-    const staleBodyClasses = [
-      'modal-open',
-      'overlay-open',
-      'dark-overlay-open',
-      'suspense-active',
-      'loading-active',
-      'page-overlay',
-      'ReactModal__Body--open'
-    ];
-    staleBodyClasses.forEach(cls => {
-      if (document.body.classList.contains(cls)) {
-        document.body.classList.remove(cls);
-        removed.push({ selector: `body.class:${cls}`, node: null });
-      }
-    });
-
-    // 4) Restore body styles that may block interactions
-    if (document.body.style.overflow === 'hidden') {
-      document.body.style.overflow = '';
-      removed.push({ selector: 'body.style.overflow', node: null });
-    }
-    document.body.style.pointerEvents = '';
-
-    // 5) Defensive: restore visibility/opacity/filter on main/root children
-    // This ensures any element left with inline styles or animations doesn't stay dimmed.
-    document.querySelectorAll('main, .main-content, .app-content, #root > *').forEach(el => {
-      try {
-        el.style.opacity = '1';
-        el.style.visibility = 'visible';
-        el.style.filter = 'none';
-        el.style.pointerEvents = 'auto';
-      } catch (e) {}
-    });
-
-    // Debug: log what we removed so you can trace the source component
-    if (removed.length > 0) {
-      console.info('[RouteCleanup] removed overlay artifacts after route:', location.pathname);
-      removed.forEach((r, i) => {
-        console.info(`[RouteCleanup][${i}]`, r.selector, r.node);
-      });
-    }
-
-    // optional: small delay re-check to catch overlays added synchronously after route change
-    const id = setTimeout(() => {
-      // re-run a single lightweight check: if body still has a full-screen fixed child, remove it
-      document.querySelectorAll('body > *').forEach(el => {
-        try {
-          const style = window.getComputedStyle(el);
-          const rect = el.getBoundingClientRect();
-          if ((style.position === 'fixed' || style.position === 'absolute') &&
-             rect.width >= window.innerWidth - 2 && rect.height >= window.innerHeight - 2 &&
-             parseInt(style.zIndex || '0', 10) > 500) {
-            console.info('[RouteCleanup] delayed remove', el);
-            el.remove();
-          }
-        } catch (e) {}
-      });
-
-      // delayed defensive restore in case an animation just finished setting inline styles
-      document.querySelectorAll('main, .main-content, .app-content, #root > *').forEach(el => {
-        try {
-          el.style.opacity = '1';
-          el.style.visibility = 'visible';
-          el.style.filter = 'none';
-          el.style.pointerEvents = 'auto';
-        } catch (e) {}
-      });
-    }, 250);
-
-    return () => clearTimeout(id);
-  }, [location]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pathname]);
 
   return null;
 }
 
-function App() {
-  return (
-    <Router>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Header />
+// Real-time socket manager — runs after auth is available
+function SocketManager() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const { showToast } = useToast();
 
-        {/* route-change cleanup runs inside Router so useLocation works */}
-        <CleanupOnRouteChange />
+  useEffect(() => {
+    if (!user) return;
 
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Switch>
-            <Route exact path="/login" component={Login} />
+    // Ensure socket is connected (attempt to connect if library exposes connect)
+    try {
+      if (socket && !socket.connected && typeof socket.connect === 'function') {
+        socket.connect();
+      }
+    } catch (err) {
+      // don't crash the app if socket.connect fails
+      // console.warn('Socket connect failed', err);
+    }
 
-            {/* Protected routes */}
-            <PrivateRoute path="/dashboard" component={Dashboard} />
-            <PrivateRoute path="/booking" component={Booking} />
-            <PrivateRoute path="/payment" component={Payment} />
-            <PrivateRoute path="/admin" component={AdminPanel} />
-            <PrivateRoute path="/reports" component={Reports} />
-            <PrivateRoute path="/profile" component={Profile} />
+    // Join user room / channel (best-effort)
+    try {
+      if (socket && socket.connected) {
+        socket.emit('join_user', user.id);
+      } else if (socket && typeof socket.emit === 'function') {
+        // emit anyway — some socket clients queue emits until connected
+        socket.emit('join_user', user.id);
+      }
+    } catch (err) {
+      // swallow emit errors
+    }
 
-            {/* Diagram routes */}
-            <PrivateRoute path="/diagrams/usecase" component={UseCaseDiagram} />
-            <PrivateRoute path="/diagrams/class" component={ClassDiagram} />
-            <PrivateRoute path="/diagrams/activity" component={ActivityDiagram} />
-            <PrivateRoute path="/diagrams/er" component={ERDiagram} />
+    // Helper to extract id from different payload shapes
+    const extractId = (payload) =>
+      payload?.slot_id ?? payload?.id ?? payload?.slotId ?? payload?.booking_id ?? null;
 
-            <Route exact path="/">
-              <Redirect to="/login" />
-            </Route>
-            <Route component={NotFound} />
-          </Switch>
-        </div>
+    const onSlotUpdated = (payload) => {
+      const id = extractId(payload);
+      // conservative: invalidate slots list so UI stays correct
+      qc.invalidateQueries({ queryKey: ['slots'] });
 
-        <Footer />
-      </div>
-    </Router>
-  );
+      // update single-slot cache if present for a smoother UI
+      if (id) {
+        // update slots list entry if present
+        qc.setQueryData(['slots'], (old) =>
+          old ? old.map((s) => (s.id === id ? { ...s, ...(payload || {}) } : s)) : old
+        );
+        // set single slot cache
+        qc.setQueryData(['slot', String(id)], (old) =>
+          old ? { ...old, ...(payload || {}) } : old
+        );
+      }
+    };
+
+    const onSlotDeleted = (payload) => {
+      const id = extractId(payload);
+      qc.invalidateQueries({ queryKey: ['slots'] });
+      if (id) {
+        qc.setQueryData(['slots'], (old) => old?.filter((s) => s.id !== id) ?? []);
+        qc.setQueryData(['slot', String(id)], () => undefined);
+      }
+    };
+
+    const onBookingCreated = (payload) => {
+      // payload might include booking_id or message/title
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['slots'] });
+      try {
+        const title = payload?.title ?? 'Booking Created';
+        const message = payload?.message ?? (payload?.booking_id ? `Booking ${payload.booking_id} created` : 'New booking created');
+        showToast?.(title, message, 'info');
+      } catch (err) {
+        // ignore toast errors
+      }
+    };
+
+    const onNotification = (notif) => {
+      qc.setQueryData(['notifications'], (old) => [notif, ...(old ?? [])]);
+      try {
+        showToast?.(notif.title, notif.message, 'info');
+      } catch (err) {
+        // ignore toast errors
+      }
+    };
+
+    // Register both legacy and canonical event names for compatibility
+    socket.on?.('slot_update', onSlotUpdated);    // legacy
+    socket.on?.('slot_updated', onSlotUpdated);   // canonical
+    socket.on?.('slot_deleted', onSlotDeleted);
+    socket.on?.('booking_created', onBookingCreated);
+    socket.on?.('notification', onNotification);
+
+    // Optional: refresh when tab gains focus to ensure user sees latest slots
+    const handleFocus = () => qc.invalidateQueries({ queryKey: ['slots'] });
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      try {
+        socket.off?.('slot_update', onSlotUpdated);
+        socket.off?.('slot_updated', onSlotUpdated);
+        socket.off?.('slot_deleted', onSlotDeleted);
+        socket.off?.('booking_created', onBookingCreated);
+        socket.off?.('notification', onNotification);
+      } catch (err) {
+        // ignore cleanup errors
+      }
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user, qc, showToast]);
+
+  return null;
 }
 
-// PrivateRoute unchanged
-function PrivateRoute({ component: Component, ...rest }) {
+export default function App() {
   return (
-    <Route {...rest} render={props => (
-      localStorage.getItem('token')
-        ? (
-          <ProtectedLayout>
-            <Component {...props} />
-          </ProtectedLayout>
-        )
-        : <Redirect to="/login" />
-    )} />
+    <ToastProvider>
+      <ScrollToTop />
+      <SocketManager />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+
+          {/* Protected shell: ProtectedLayout should render an <Outlet /> */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+
+            {/* Regular authenticated routes */}
+            <Route path="dashboard" element={<Dashboard />} />
+
+            {/* Booking UI */}
+            <Route path="booking" element={<Booking />} />
+            <Route path="booking/:slotId?" element={<Booking />} />
+
+            {/* Alias: show slots/dashboard for /slots */}
+            <Route path="slots" element={<Dashboard />} />
+
+            <Route path="payment/:id" element={<Payment />} />
+            <Route path="profile" element={<Profile />} />
+
+            {/* Admin-only routes */}
+            <Route
+              path="admin"
+              element={
+                <PrivateRoute adminOnly={true}>
+                  <AdminPanel />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="admin/slots"
+              element={
+                <PrivateRoute adminOnly={true}>
+                  <AdminPanel />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <PrivateRoute adminOnly={true}>
+                  <Reports />
+                </PrivateRoute>
+              }
+            />
+          </Route>
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </ToastProvider>
   );
 }
-
-export default App;
