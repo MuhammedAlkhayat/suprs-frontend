@@ -1,0 +1,399 @@
+/* src/components/Header.css */
+
+/* Root header container */
+.header-root {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--bg-base);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Left group (menu + logo) */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Logo area */
+.logo-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#00d2ff,#3a7bd5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,210,255,0.3);
+  overflow: hidden;
+}
+
+.logo-mark .logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-title {
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg,#00d2ff,#3a7bd5);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* fallback */
+}
+
+/* Nav */
+.header-nav .nav-inner {
+  max-width: 1200px;
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.nav-link {
+  padding: 8px 18px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background-color: transparent;
+  border: 1.5px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.nav-link:focus {
+  outline: 3px solid rgba(0,210,255,0.12);
+  outline-offset: 2px;
+}
+.nav-link.active {
+  color: var(--primary);
+  background-color: var(--bg-elevated);
+  border-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+
+/* Actions right side */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Theme and notification wrappers */
+.theme-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.notification {
+  margin-right: 4px;
+}
+
+/* Avatar
+   - Supports a CSS variable --avatar-bg if set from JS.
+   - If not set, a default gradient is used.
+*/
+.avatar {
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #001219;
+  flex-shrink: 0;
+  user-select: none;
+  background: var(--avatar-bg, linear-gradient(135deg,#00d2ff,#3a7bd5));
+  width: auto;
+  height: auto;
+}
+
+/* User area */
+.user-area {
+  position: relative;
+}
+
+/* User button */
+.user-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.user-button:focus {
+  outline: 3px solid rgba(0,210,255,0.12);
+  outline-offset: 2px;
+}
+
+.user-button.open {
+  background: rgba(255,255,255,0.06);
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* chevron color increased for visibility */
+.user-button .chev {
+  margin-left: 4px;
+  transform-origin: center;
+  transition: transform 0.2s;
+  color: var(--primary);
+  opacity: 0.98;
+}
+
+.user-button.open .chev {
+  transform: rotate(180deg);
+}
+
+/* User menu */
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--bg-base);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  overflow: hidden;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+.user-menu.show {
+  display: flex;
+}
+
+.user-info {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.user-info-name {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.user-info-email {
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.user-role {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  border-radius: 99px;
+  padding: 2px 8px;
+}
+
+.user-role.admin {
+  color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.2);
+}
+
+.user-role.user {
+  color: #00d2ff;
+  background: rgba(0,210,255,0.1);
+  border: 1px solid rgba(0,210,255,0.2);
+}
+
+.user-menu-item {
+  width: 100%;
+  padding: 11px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+.user-menu-item:hover {
+  background: rgba(255,255,255,0.02);
+}
+.user-menu-item.signout {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* Menu divider */
+.menu-divider {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Menu icon spacing (added) */
+.menu-icon {
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+/* Left / right menu button styling (scoped) */
+.header-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.12s ease, transform 0.12s;
+  color: var(--primary);
+  align-self: center;
+  font-size: 18px;
+}
+.header-menu-btn:hover,
+.header-menu-btn:focus {
+  background: rgba(255,255,255,0.03);
+  color: #e6f7ff;
+  outline: none;
+  transform: translateY(-1px);
+}
+.header-menu-icon {
+  color: inherit;
+  font-size: 18px;
+  opacity: 0.98;
+}
+
+/* mobile-toggle kept for backwards compatibility */
+.mobile-toggle {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* Mobile menu */
+.mobile-menu {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-base);
+  backdrop-filter: blur(20px);
+  z-index: 999;
+  padding: 20px;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-menu.show {
+  display: flex;
+}
+
+.mobile-nav-link {
+  padding: 14px 18px;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  border: 1.5px solid var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-nav-link.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--bg-elevated);
+}
+
+.mobile-nav-link.signout {
+  color: #ef4444;
+  border-color: rgba(239,68,68,0.2);
+  background: rgba(239,68,68,0.04);
+}
+
+/* Scoped utility classes to header (avoid global collisions) */
+.header-desktop-only {
+  display: none;
+}
+.header-mobile-only {
+  display: flex;
+}
+
+/* Desktop breakpoint: show/hide accordingly */
+@media (min-width: 900px) {
+  .header-desktop-only {
+    display: block;
+  }
+  .header-mobile-only {
+    display: none;
+  }
+
+  /* Ensure header-menu-btn remains inline-flex on desktop */
+  .header-desktop-only.header-menu-btn {
+    display: inline-flex;
+  }
+
+  /* If mobile-toggle is used on desktop (we applied both classes to it),
+     ensure it appears as a consistent button */
+  .header-desktop-only.mobile-toggle {
+    display: inline-flex;
+  }
+}
+
+/* Small accessibility helpers */
+.header-root a:focus,
+.header-root button:focus {
+  outline: none;
+}
