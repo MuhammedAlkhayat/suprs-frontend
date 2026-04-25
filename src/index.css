@@ -2,266 +2,48 @@
   --primary: #00d2ff;
   --secondary: #3a7bd5;
   --bg: #0f172a;
-  --card-bg: rgba(255, 255, 255, 0.12);
+  --card-bg: rgba(255,255,255,0.04);
   --card-bg-fallback: #1e293b;
   --text: #f8fafc;
-
-  /* Layout helpers - adjust to match your Header / Sidebar sizes */
-  --header-height: 70px;    /* change if your Header is taller/shorter */
-  --sidebar-width: 220px;   /* collapsed width: 64px (handled by component) */
+  --text-muted: #64748b;
+  --border: rgba(255,255,255,0.08);
+  --header-height: 70px;
+  --sidebar-width: 220px;
 }
 
-/* Global box sizing */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
-/* Ensure root visibility (debug safety) */
 html, body, #root {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  /* explicit: ensure visible and not hidden by any stuck animation */
-  opacity: 1 !important;
-  visibility: visible !important;
-  background: var(--bg);
+  margin: 0; padding: 0; height: 100%;
+  opacity: 1 !important; visibility: visible !important;
 }
 
-/* Page background and font */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: #0f172a;
   background: radial-gradient(circle at top right, #1e293b, #0f172a);
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
-/* Basic app layout helpers
-   - main (or .main-content) is positioned below Header and to the right of Sidebar
-   - Responsive: on small screens we remove left margin so content uses full width
-*/
-main,
-.main-content,
-.app-content {
-  position: relative;
-  z-index: 1;
-  min-height: calc(100vh - var(--header-height));
-  padding: 24px;
-  /* make room for header at top and sidebar on left (desktop) */
-  padding-top: calc(var(--header-height) + 24px);
-  margin-left: var(--sidebar-width);
-  transition: margin-left 0.22s ease, padding-top 0.12s ease;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-/* When the sidebar collapses on the React side you can add body.sidebar-collapsed
-   dynamically to reduce the left margin to the collapsed width (64px) */
-body.sidebar-collapsed main,
-body.sidebar-collapsed .main-content {
-  margin-left: 64px;
-}
-
-/* Small screens: use full width (sidebar will likely be toggled) */
-@media (max-width: 900px) {
-  main,
-  .main-content,
-  .app-content {
-    margin-left: 0;
-    padding-top: calc(var(--header-height) + 16px);
-  }
-}
-
-/* Glass card: more visible and Safari-friendly */
-.glass-card {
-  background: var(--card-bg);
-  background-color: var(--card-bg-fallback); /* fallback */
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  transition: background-color 0.3s ease, opacity 0.2s ease;
-  opacity: 1;
-  color: var(--text);
-}
-
-/* Ensure inner elements are visible (prevents child opacity issues) */
-.glass-card * {
-  opacity: 1 !important;
-  color: inherit !important;
-}
-
-/* Slick / Carousel overrides */
-.slick-slide { outline: none; }
-
-.slick-dots li button:before {
-  color: var(--primary);
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-.slick-prev:before,
-.slick-next:before {
-  color: var(--primary);
-  font-size: 24px;
-}
-
-/* Parking grid / slots */
-.parking-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 20px;
-  padding: 20px;
-}
-
-.slot-box {
-  height: 150px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  position: relative;
-  border: 2px solid transparent;
-  color: var(--text);
-  font-weight: 600;
-  font-size: 18px;
-  user-select: none;
-}
-
-.slot-box.available { background: rgba(34, 197, 94, 0.25); border-color: #22c55e; }
-.slot-box.occupied  { background: rgba(239, 68, 68, 0.25); border-color: #ef4444; cursor: not-allowed; }
-.slot-box.reserved  { background: rgba(234, 179, 8, 0.25); border-color: #eab308; }
-
-.slot-box:hover:not(.occupied) {
-  transform: translateY(-5px);
-  box-shadow: 0 0 20px var(--primary);
-}
-
-/* Buttons */
-button {
-  background: linear-gradient(45deg, var(--primary), var(--secondary));
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;
-  opacity: 1;
-}
-
-button:hover,
-button:focus {
-  opacity: 0.95;
-  outline: none;
-  transform: scale(1.03);
-  box-shadow: 0 8px 24px rgba(0, 210, 255, 0.15);
-}
-
-/* Form inputs */
-input,
-select,
-textarea {
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  color: var(--text);
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 10px;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 8px rgba(0, 210, 255, 0.18);
-}
-
-/* Tooltip safe styling */
-.tooltip,
-.custom-tooltip {
-  z-index: 9999 !important;
-  pointer-events: none;
-  color: var(--primary);
-}
-
-/* -- Overlay / fade-kill rules (development safety)
-   These force hidden/stopped overlays that sometimes remain in DOM during hot reloads.
-   They are broad — if you plan to use real modal/backdrop behavior in production,
-   remove or narrow these selectors to avoid hiding intended overlays.
-*/
-.loading-overlay,
-.page-overlay,
-.app-overlay,
-.suspense-fallback,
-.dark-overlay,
-.modal-backdrop,
-.backdrop,
-.overlay,
-.fade.show,
-[class*="backdrop"],
-[class*="overlay"],
-[class*="modal"],
-[class*="fade"],
-[class*="suspense"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-/* Prevent pseudo-element based overlays */
-body::before,
-#root::before,
-body::after,
-#root::after {
-  display: none !important;
-  content: none !important;
-  pointer-events: none !important;
-}
-
-/* Ensure the main content is not blocked; keep it above any stray overlays */
-main,
-.app-content,
-#root > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* DEV-SHIELD: Force app content above stray overlays (development only)
-   This makes the app visible even if some overlay/backdrop is left in DOM with a high z-index.
-   NOTE: This is aggressive and intended ONLY for local dev/hot-reload debugging.
-   Remove or narrow before deploying to production. */
-#root > * {
-  position: relative !important;
-  z-index: 2147483646 !important; /* very high so app sits above accidental backdrops */
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-}
-
-/* Helpful utility: full-bleed container for top-level sections */
-.container-wide {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Accessibility: focus outlines */
-a:focus,
-button:focus,
-input:focus {
-  outline: 3px solid rgba(0, 210, 255, 0.12);
+/* Focus accessibility */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid rgba(0,210,255,0.5);
   outline-offset: 2px;
 }
 
-/* Debug helper (dev only) - show element boundaries when needed */
-/* .debug-bounds * { outline: 1px dashed rgba(255,0,0,0.04); } */
+/* Bootstrap dark overrides */
+.table-dark { --bs-table-bg: transparent; }
+.table > :not(caption) > * > * { background-color: transparent; }
+
+/* Responsive helpers */
+@media (max-width: 768px) {
+  :root { --header-height: 60px; }
+}
