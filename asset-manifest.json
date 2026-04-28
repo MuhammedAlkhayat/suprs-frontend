@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/suprs-frontend/static/css/main.07c02862.css",
-    "main.js": "/suprs-frontend/static/js/main.3490029d.js",
+    "main.js": "/suprs-frontend/static/js/main.fa4c8719.js",
     "static/js/66.529dfccb.chunk.js": "/suprs-frontend/static/js/66.529dfccb.chunk.js",
     "static/js/390.6cb7f96d.chunk.js": "/suprs-frontend/static/js/390.6cb7f96d.chunk.js",
     "static/css/310.d7a3dced.chunk.css": "/suprs-frontend/static/css/310.d7a3dced.chunk.css",
@@ -10,12 +10,12 @@
     "static/js/781.5f78439b.chunk.js": "/suprs-frontend/static/js/781.5f78439b.chunk.js",
     "static/js/122.2cecc9a3.chunk.js": "/suprs-frontend/static/js/122.2cecc9a3.chunk.js",
     "static/js/816.f524c3f6.chunk.js": "/suprs-frontend/static/js/816.f524c3f6.chunk.js",
-    "static/js/756.857fd074.chunk.js": "/suprs-frontend/static/js/756.857fd074.chunk.js",
+    "static/js/756.522131f8.chunk.js": "/suprs-frontend/static/js/756.522131f8.chunk.js",
     "static/js/953.ca6c0593.chunk.js": "/suprs-frontend/static/js/953.ca6c0593.chunk.js",
     "static/js/784.32a63ef4.chunk.js": "/suprs-frontend/static/js/784.32a63ef4.chunk.js",
     "index.html": "/suprs-frontend/index.html",
     "main.07c02862.css.map": "/suprs-frontend/static/css/main.07c02862.css.map",
-    "main.3490029d.js.map": "/suprs-frontend/static/js/main.3490029d.js.map",
+    "main.fa4c8719.js.map": "/suprs-frontend/static/js/main.fa4c8719.js.map",
     "66.529dfccb.chunk.js.map": "/suprs-frontend/static/js/66.529dfccb.chunk.js.map",
     "390.6cb7f96d.chunk.js.map": "/suprs-frontend/static/js/390.6cb7f96d.chunk.js.map",
     "310.d7a3dced.chunk.css.map": "/suprs-frontend/static/css/310.d7a3dced.chunk.css.map",
@@ -24,12 +24,12 @@
     "781.5f78439b.chunk.js.map": "/suprs-frontend/static/js/781.5f78439b.chunk.js.map",
     "122.2cecc9a3.chunk.js.map": "/suprs-frontend/static/js/122.2cecc9a3.chunk.js.map",
     "816.f524c3f6.chunk.js.map": "/suprs-frontend/static/js/816.f524c3f6.chunk.js.map",
-    "756.857fd074.chunk.js.map": "/suprs-frontend/static/js/756.857fd074.chunk.js.map",
+    "756.522131f8.chunk.js.map": "/suprs-frontend/static/js/756.522131f8.chunk.js.map",
     "953.ca6c0593.chunk.js.map": "/suprs-frontend/static/js/953.ca6c0593.chunk.js.map",
     "784.32a63ef4.chunk.js.map": "/suprs-frontend/static/js/784.32a63ef4.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.07c02862.css",
-    "static/js/main.3490029d.js"
+    "static/js/main.fa4c8719.js"
   ]
 }
